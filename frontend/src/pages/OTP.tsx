@@ -39,7 +39,8 @@ export default function OTP() {
       setPendingOtp(null);
       navigate(data.isNewUser || !data.user.name ? '/set-name' : '/');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      const raw = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
+      const msg = typeof raw === 'string' ? raw : undefined;
       setError(msg ?? 'Invalid code'); setOtp('');
     } finally { setLoading(false); }
   }

@@ -26,7 +26,8 @@ export default function Login() {
       setPendingOtp(data.otp ?? null);
       navigate('/otp');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      const raw = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
+      const msg = typeof raw === 'string' ? raw : undefined;
       setError(msg ?? 'Failed to send OTP');
     } finally {
       setLoading(false);
