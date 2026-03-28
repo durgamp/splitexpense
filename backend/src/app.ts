@@ -13,6 +13,11 @@ import contactsRouter from './routes/contacts.js';
 
 const app = express();
 
+// Trust exactly one proxy hop (required for Vercel/load-balancers so req.ip
+// resolves to the real client IP via X-Forwarded-For, and express-rate-limit
+// doesn't throw ERR_ERL_UNDEFINED_IP_ADDRESS).
+app.set('trust proxy', 1);
+
 // ── Security middleware ───────────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {

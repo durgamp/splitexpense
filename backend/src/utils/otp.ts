@@ -5,7 +5,7 @@ const BCRYPT_ROUNDS = 10;
 
 /** Generate a 6-digit OTP. Returns '123456' in dev mode for easy testing. */
 export function generateOtp(): string {
-  if (process.env.OTP_DEV_EXPOSE === 'true' && process.env.NODE_ENV !== 'production') {
+  if (process.env.OTP_DEV_EXPOSE === 'true') {
     return '123456';
   }
   // Use rejection sampling to avoid modulo bias

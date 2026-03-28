@@ -65,8 +65,10 @@ router.post(
       message: 'OTP sent',
       expiresAt: now + OTP_TTL_MS,
     };
-    if (DEV_EXPOSE_OTP && process.env.NODE_ENV !== 'production') {
-      response.otp = code; // NEVER in production
+    // Expose OTP in response when OTP_DEV_EXPOSE=true (set in Vercel env vars for testing).
+    // Remove OTP_DEV_EXPOSE or set it to false before going live with real users.
+    if (DEV_EXPOSE_OTP) {
+      response.otp = code;
     }
 
     res.json(response);
