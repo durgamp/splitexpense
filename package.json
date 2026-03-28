@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@10.32.1",
+  "engines": { "node": ">=22.5.0" },
   "scripts": {
     "dev": "concurrently -n backend,frontend -c green,cyan \"pnpm --filter splitease-backend dev\" \"pnpm --filter splitease-frontend dev\"",
     "dev:backend": "pnpm --filter splitease-backend dev",

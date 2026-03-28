@@ -2,5 +2,14 @@
   "installCommand": "pnpm install",
   "buildCommand": "pnpm --filter splitease-frontend build",
   "outputDirectory": "frontend/dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "functions": {
+    "api/[...slug].ts": {
+      "maxDuration": 30
+    }
+  },
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/api/(.*)", "dest": "/api/[...slug]" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }

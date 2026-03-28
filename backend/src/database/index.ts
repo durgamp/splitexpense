@@ -3,10 +3,9 @@ import path from 'path';
 import fs from 'fs';
 import { runMigrations } from './migrations';
 
-const DB_PATH = path.resolve(
-  process.cwd(),
-  process.env.DB_PATH ?? 'database/splitease.db'
-);
+const DB_PATH = process.env.VERCEL
+  ? '/tmp/splitease.db'
+  : path.resolve(process.cwd(), process.env.DB_PATH ?? 'database/splitease.db');
 
 let _db: DatabaseSync | null = null;
 
