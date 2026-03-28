@@ -8,10 +8,12 @@ interface AuthState {
   status: AuthStatus;
   user: User | null;
   pendingPhone: string | null;
+  pendingOtp: string | null;
 
   setStatus: (s: AuthStatus) => void;
   setUser: (user: User) => void;
   setPendingPhone: (phone: string | null) => void;
+  setPendingOtp: (otp: string | null) => void;
   updateName: (name: string) => void;
   reset: () => void;
 }
@@ -22,6 +24,7 @@ export const useAuthStore = create<AuthState>()(
       status: 'unknown',
       user: null,
       pendingPhone: null,
+      pendingOtp: null,
 
       setStatus: (status) => set({ status }),
 
@@ -30,6 +33,8 @@ export const useAuthStore = create<AuthState>()(
 
       setPendingPhone: (pendingPhone) => set({ pendingPhone }),
 
+      setPendingOtp: (pendingOtp) => set({ pendingOtp }),
+
       updateName: (name) =>
         set((s) => ({
           user: s.user ? { ...s.user, name } : null,
@@ -37,12 +42,11 @@ export const useAuthStore = create<AuthState>()(
         })),
 
       reset: () =>
-        set({ status: 'unauthenticated', user: null, pendingPhone: null }),
+        set({ status: 'unauthenticated', user: null, pendingPhone: null, pendingOtp: null }),
     }),
     {
       name: 'splitease-auth',
-      // Only persist user data, not ephemeral status
-      partialize: (s) => ({ user: s.user, pendingPhone: s.pendingPhone }),
+      partialize: (s) => ({ user: s.user, pendingPhone: s.pendingPhone, pendingOtp: s.pendingOtp }),
     }
   )
 );

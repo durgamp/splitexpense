@@ -22,6 +22,34 @@ function Spinner() {
   );
 }
 
+/** Catches render errors and shows a message instead of a blank screen. */
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 gap-4 text-center">
+          <span className="text-5xl">⚠️</span>
+          <h2 className="text-xl font-bold text-gray-900">Something went wrong</h2>
+          <p className="text-gray-500 text-sm max-w-xs">
+            {(this.state.error as Error).message || 'An unexpected error occurred.'}
+          </p>
+          <button
+            onClick={() => { this.setState({ error: null }); window.location.href = '/'; }}
+            className="mt-2 px-6 py-2 bg-primary text-white rounded-xl text-sm font-semibold">
+            Reload app
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 /** Redirects unauthenticated users to /login, users without a name to /set-name. */
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { status } = useAuthStore();
@@ -46,9 +74,8 @@ function GuestGuard({ children }: { children: React.ReactNode }) {
 
   if (status === 'unknown') return <Spinner />;
 
-  if (status === 'authenticated') {
-    return <Navigate to="/" replace />;
-  }
+  if (status === 'authenticated') return <Navigate to="/" replace />;
+  if (status === 'needs-name') return <Navigate to="/set-name" replace />;
 
   return <>{children}</>;
 }
@@ -64,14 +91,10 @@ function AuthInitializer() {
     const refreshToken = localStorage.getItem('refreshToken');
 
     if (!accessToken && !refreshToken) {
-      // No tokens at all — definitely unauthenticated
       reset();
     } else if (user) {
-      // Tokens + persisted user — restore status from user shape
       setStatus(user.name ? 'authenticated' : 'needs-name');
     } else {
-      // Tokens exist but no persisted user — treat as unauthenticated;
-      // the next protected API call will either succeed or trigger refresh/redirect
       reset();
     }
   }, []);
@@ -82,29 +105,31 @@ function AuthInitializer() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthInitializer />
-      <React.Suspense fallback={<Spinner />}>
-        <Routes>
-          {/* Public auth routes */}
-          <Route path="/login" element={<GuestGuard><Login /></GuestGuard>} />
-          <Route path="/otp" element={<GuestGuard><OTP /></GuestGuard>} />
-          <Route path="/set-name" element={<SetName />} />
+      <ErrorBoundary>
+        <AuthInitializer />
+        <React.Suspense fallback={<Spinner />}>
+          <Routes>
+            {/* Public auth routes */}
+            <Route path="/login" element={<GuestGuard><Login /></GuestGuard>} />
+            <Route path="/otp" element={<GuestGuard><OTP /></GuestGuard>} />
+            <Route path="/set-name" element={<SetName />} />
 
-          {/* Public invite route (auth handled inside Invite page) */}
-          <Route path="/invite/:token" element={<Invite />} />
+            {/* Public invite route (auth handled inside Invite page) */}
+            <Route path="/invite/:token" element={<Invite />} />
 
-          {/* Protected app routes */}
-          <Route path="/" element={<AuthGuard><Groups /></AuthGuard>} />
-          <Route path="/group/new" element={<AuthGuard><CreateGroup /></AuthGuard>} />
-          <Route path="/group/:id" element={<AuthGuard><GroupDetail /></AuthGuard>} />
-          <Route path="/group/:id/add-expense" element={<AuthGuard><AddExpense /></AuthGuard>} />
-          <Route path="/analytics" element={<AuthGuard><Analytics /></AuthGuard>} />
-          <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
+            {/* Protected app routes */}
+            <Route path="/" element={<AuthGuard><Groups /></AuthGuard>} />
+            <Route path="/group/new" element={<AuthGuard><CreateGroup /></AuthGuard>} />
+            <Route path="/group/:id" element={<AuthGuard><GroupDetail /></AuthGuard>} />
+            <Route path="/group/:id/add-expense" element={<AuthGuard><AddExpense /></AuthGuard>} />
+            <Route path="/analytics" element={<AuthGuard><Analytics /></AuthGuard>} />
+            <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </React.Suspense>
+            {/* Catch-all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </React.Suspense>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }

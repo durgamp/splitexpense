@@ -9,18 +9,19 @@ const COOLDOWN = 30;
 
 export default function OTP() {
   const navigate = useNavigate();
-  const { pendingPhone, setUser, setPendingPhone, status } = useAuthStore();
+  const { pendingPhone, pendingOtp, setUser, setPendingPhone, setPendingOtp, status } = useAuthStore();
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [cooldown, setCooldown] = useState(COOLDOWN);
   const inputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
-    // Only bounce to login if there's no pending phone AND we're not mid-verification
     if (!pendingPhone && status !== 'authenticated' && status !== 'needs-name') {
       navigate('/login');
     }
   }, [pendingPhone, status]);
+
   useEffect(() => {
     if (cooldown <= 0) return;
     const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
@@ -35,6 +36,7 @@ export default function OTP() {
       setTokens(data.accessToken, data.refreshToken);
       setUser(data.user);
       setPendingPhone(null);
+      setPendingOtp(null);
       navigate(data.isNewUser || !data.user.name ? '/set-name' : '/');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -44,8 +46,12 @@ export default function OTP() {
 
   async function resend() {
     if (cooldown > 0 || !pendingPhone) return;
-    try { await authApi.requestOtp(pendingPhone); setCooldown(COOLDOWN); setError(''); }
-    catch { setError('Failed to resend'); }
+    try {
+      const { data } = await authApi.requestOtp(pendingPhone);
+      setPendingOtp(data.otp ?? null);
+      setCooldown(COOLDOWN);
+      setError('');
+    } catch { setError('Failed to resend'); }
   }
 
   return (
@@ -56,10 +62,11 @@ export default function OTP() {
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Enter the code</h2>
         <p className="text-gray-500 text-sm mb-3">Sent to {pendingPhone}</p>
 
-        {import.meta.env.DEV && (
+        {/* Show OTP code whenever backend returns it (dev mode or OTP_DEV_EXPOSE=true) */}
+        {pendingOtp && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2 mb-5 text-sm flex items-center gap-2">
-            <span className="text-yellow-700">Dev mode — OTP is always</span>
-            <span className="font-mono font-bold text-yellow-900 text-base tracking-widest">123456</span>
+            <span className="text-yellow-700">Your code:</span>
+            <span className="font-mono font-bold text-yellow-900 text-base tracking-widest">{pendingOtp}</span>
           </div>
         )}
 

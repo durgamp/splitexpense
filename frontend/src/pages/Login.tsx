@@ -7,12 +7,11 @@ import { useAuthStore } from '@/store/auth.store';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { setPendingPhone } = useAuthStore();
+  const { setPendingPhone, setPendingOtp } = useAuthStore();
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [devOtp, setDevOtp] = useState('');
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +22,8 @@ export default function Login() {
     try {
       const { data } = await authApi.requestOtp(full);
       setPendingPhone(full);
-      if (data.otp) setDevOtp(data.otp); // development only
+      // Store OTP in Zustand so OTP page can display it (works in both dev and prod)
+      setPendingOtp(data.otp ?? null);
       navigate('/otp');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -53,13 +53,6 @@ export default function Login() {
                 placeholder="98765 43210" type="tel" autoFocus error={error} />
             </div>
           </div>
-
-          {import.meta.env.DEV && devOtp && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm">
-              <span className="font-medium text-yellow-800">Dev OTP: </span>
-              <span className="font-mono font-bold text-yellow-900">{devOtp}</span>
-            </div>
-          )}
 
           <Button type="submit" fullWidth size="lg" loading={loading}>
             Send OTP
