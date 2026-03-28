@@ -37,6 +37,14 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
+
+      // Don't try to refresh if the failing request IS the refresh call — prevents loops.
+      if (original.url?.includes('/auth/refresh')) {
+        clearTokens();
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
       const refreshToken = localStorage.getItem('refreshToken');
 
       if (!refreshToken) {

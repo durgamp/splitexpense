@@ -41,5 +41,6 @@ export function asRows<T>(v: unknown): T[] { return v as any; }
 
 /** Close the db connection cleanly on process exit. */
 process.on('exit', () => _db?.close());
-process.on('SIGINT', () => { _db?.close(); process.exit(0); });
-process.on('SIGTERM', () => { _db?.close(); process.exit(0); });
+// Do NOT call process.exit() in SIGINT/SIGTERM — it crashes Vercel serverless functions.
+process.on('SIGINT', () => _db?.close());
+process.on('SIGTERM', () => _db?.close());

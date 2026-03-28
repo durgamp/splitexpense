@@ -45,7 +45,9 @@ export default function GroupDetail() {
     Promise.all([
       groupsApi.get(id).then(({ data }) => upsertGroup(data.group)),
       expensesApi.list(id).then(({ data }) => setGroupExpenses(id, data.expenses)),
-    ]).finally(() => setLoading(false));
+    ]).catch((err) => {
+      console.error('[GroupDetail] Failed to load:', err);
+    }).finally(() => setLoading(false));
   }, [id]);
 
   function inviteUrl() {
@@ -67,14 +69,18 @@ export default function GroupDetail() {
 
   async function handleSettle(s: Settlement) {
     if (!id) return;
-    const { data } = await expensesApi.create(id, {
-      description: '💸 Settlement',
-      amountRupees: s.amountPaise / 100,
-      paidByPhone: s.fromPhone,
-      participantPhones: [s.toPhone],
-      category: 'other',
-    });
-    upsertExpense(data.expense);
+    try {
+      const { data } = await expensesApi.create(id, {
+        description: '💸 Settlement',
+        amountRupees: s.amountPaise / 100,
+        paidByPhone: s.fromPhone,
+        participantPhones: [s.toPhone],
+        category: 'other',
+      });
+      upsertExpense(data.expense);
+    } catch (err) {
+      console.error('[GroupDetail] Settlement failed:', err);
+    }
   }
 
   async function copyLink() {
