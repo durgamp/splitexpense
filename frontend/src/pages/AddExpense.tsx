@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -28,13 +28,24 @@ export default function AddExpense() {
   const group = useGroupStore((s) => s.getById(id ?? ''));
   const { upsertExpense } = useExpenseStore();
 
+  // Active members only — backend requires paidByPhone to be active
   const active = group?.members.filter((m) => m.status === 'active') ?? [];
-  const allPhones = active.map((m) => m.phone);
+  // All non-removed members — pending members can still be expense participants
+  const allMembers = group?.members.filter((m) => m.status !== 'removed') ?? [];
+  const allPhones = allMembers.map((m) => m.phone);
 
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState(user?.phone ?? '');
-  const [participants, setParticipants] = useState<string[]>(allPhones);
+  const [participants, setParticipants] = useState<string[]>([]);
+
+  // Sync participants when group loads (handles race where group wasn't in
+  // store at mount time — useState initial value only runs once).
+  useEffect(() => {
+    if (allPhones.length > 0 && participants.length === 0) {
+      setParticipants(allPhones);
+    }
+  }, [allPhones.join(',')]);
   const [category, setCategory] = useState<ExpenseCategory>('other');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -45,7 +56,7 @@ export default function AddExpense() {
     ? splitEqually(amtPaise, participants)
     : {};
 
-  const allSelected = participants.length === allPhones.length;
+  const allSelected = participants.length === allPhones.length && allPhones.length > 0;
 
   function toggleParticipant(phone: string) {
     setParticipants((prev) =>
@@ -144,9 +155,10 @@ export default function AddExpense() {
           </div>
           {errors.participants && <p className="text-red-500 text-xs mb-2">{errors.participants}</p>}
           <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100">
-            {active.map((m) => {
+            {allMembers.map((m) => {
               const sel = participants.includes(m.phone);
               const share = splitMap[m.phone];
+              const isPending = m.status === 'pending';
               return (
                 <button key={m.phone} type="button" onClick={() => toggleParticipant(m.phone)}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
@@ -154,6 +166,7 @@ export default function AddExpense() {
                   <div className="flex-1 text-left">
                     <p className="text-gray-900 font-medium">
                       {m.phone === user?.phone ? 'You' : m.name}
+                      {isPending && <span className="ml-1.5 text-xs text-gray-400 font-normal">(invited)</span>}
                     </p>
                     {sel && share !== undefined ? (
                       <p className="text-xs text-primary">{fmtShort(share)}</p>
