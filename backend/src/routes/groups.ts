@@ -178,8 +178,18 @@ router.post('/:id/members', validate(memberSchema), (req, res) => {
 
   if (existing) {
     if (existing.status === 'removed') {
-      db.prepare("UPDATE group_members SET status = 'pending', name = ? WHERE group_id = ? AND phone = ?")
-        .run(name, req.params.id, phone);
+      // Re-activating a removed member: respect whether they have an account.
+      db.prepare(`
+        UPDATE group_members
+        SET status = ?, user_id = ?, name = ?, joined_at = ?
+        WHERE group_id = ? AND phone = ?
+      `).run(
+        existingUser ? 'active' : 'pending',
+        existingUser?.id ?? existing.user_id,
+        name || existingUser?.name || phone,
+        existingUser ? now : null,
+        req.params.id, phone,
+      );
     } else {
       res.status(409).json({ error: 'Member already in group' });
       return;

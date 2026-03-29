@@ -90,7 +90,12 @@ export default function AddExpense() {
 
       <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-5 pb-20">
         <Input label="Amount (₹)" value={amount}
-          onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.]/g, '')); setErrors((v) => ({ ...v, amount: '' })); }}
+          onChange={(e) => {
+            // Allow digits and at most one decimal point
+            const v = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+            setAmount(v);
+            setErrors((prev) => ({ ...prev, amount: '' }));
+          }}
           placeholder="0.00" prefix="₹" inputMode="decimal" error={errors.amount} autoFocus />
 
         <Input label="What's it for?" value={desc}

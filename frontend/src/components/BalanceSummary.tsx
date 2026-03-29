@@ -72,7 +72,7 @@ export function BalanceSummary({ settlements, netBalances, myPhone, onSettle }: 
               const canSettle = onSettle && s.fromPhone === myPhone;
               const isSettling = settling === i;
               return (
-                <div key={i} className={`flex items-center gap-3 p-3 rounded-xl ${isMe ? 'bg-gray-50' : ''}`}>
+                <div key={`${s.fromPhone}→${s.toPhone}`} className={`flex items-center gap-3 p-3 rounded-xl ${isMe ? 'bg-gray-50' : ''}`}>
                   <Avatar name={s.fromName} size={32} />
                   <p className="flex-1 text-sm text-gray-600">
                     <span className="font-semibold text-gray-900">{fromLabel}</span> owes{' '}

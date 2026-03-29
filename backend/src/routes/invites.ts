@@ -6,12 +6,7 @@ import type { GroupRow, GroupMemberRow, UserRow } from '../types/index.js';
 
 const router = Router();
 
-const INVITE_BASE_URL = process.env.INVITE_BASE_URL ?? 'http://localhost:5173/invite';
 const INVITE_TTL_MS = (Number(process.env.INVITE_TOKEN_TTL_DAYS) || 7) * 86400 * 1000;
-
-function buildInviteUrl(token: string) {
-  return `${INVITE_BASE_URL}/${token}`;
-}
 
 // ── GET /invite/:token — public preview ───────────────────────────────────────
 router.get('/:token', (req, res) => {
@@ -139,7 +134,7 @@ router.post('/groups/:id/rotate', requireAuth, (req, res) => {
   db.prepare('UPDATE groups SET invite_token = ?, invite_token_created_at = ? WHERE id = ?')
     .run(newToken, now, req.params.id);
 
-  res.json({ inviteToken: newToken, url: buildInviteUrl(newToken) });
+  res.json({ inviteToken: newToken });
 });
 
 export default router;

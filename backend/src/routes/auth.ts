@@ -136,8 +136,10 @@ router.post(
       VALUES (?, ?, ?, ?, ?)
     `).run(newId(), user.id, tokenHash, now + REFRESH_TTL_MS, now);
 
-    // Reconcile pending group memberships
-    if (user.name) {
+    // Reconcile pending group memberships for all returning users and new users
+    // who already have a name (e.g. invited before registering).
+    // New users with no name will be reconciled when they set their name via PATCH /auth/name.
+    if (user.name || !isNewUser) {
       db.prepare(`
         UPDATE group_members SET user_id = ?, status = 'active', joined_at = ?
         WHERE phone = ? AND status = 'pending'

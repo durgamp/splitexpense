@@ -27,9 +27,11 @@ export default function Groups() {
     setLoading(true);
     groupsApi.list().then(({ data }) => {
       setGroups(data.groups);
-      // Pre-fetch expenses for each group
+      // Pre-fetch expenses for each group (fire-and-forget; errors silently keep balance at 0)
       data.groups.forEach((g: Group) =>
-        expensesApi.list(g.id).then((r) => setGroupExpenses(g.id, r.data.expenses))
+        expensesApi.list(g.id)
+          .then((r) => setGroupExpenses(g.id, r.data.expenses))
+          .catch(() => { /* balance shows 0 until next load */ })
       );
     }).finally(() => setLoading(false));
   }, []);
