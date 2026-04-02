@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { authApi } from '@/services/api';
@@ -7,6 +7,8 @@ import { useAuthStore } from '@/store/auth.store';
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const invite = searchParams.get('invite');
   const { setPendingEmail, setPendingOtp } = useAuthStore();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +27,7 @@ export default function Login() {
       const { data } = await authApi.requestOtp(trimmed);
       setPendingEmail(trimmed);
       setPendingOtp(data.otp ?? null);
-      navigate('/otp');
+      navigate(invite ? `/otp?invite=${invite}` : '/otp');
     } catch (err: unknown) {
       const raw = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
       const msg = typeof raw === 'string' ? raw : undefined;

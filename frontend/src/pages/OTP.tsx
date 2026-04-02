@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { authApi, setTokens } from '@/services/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -9,6 +9,8 @@ const COOLDOWN = 30;
 
 export default function OTP() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const invite = searchParams.get('invite');
   const { pendingEmail, pendingOtp, setUser, setPendingEmail, setPendingOtp, status } = useAuthStore();
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,8 +39,9 @@ export default function OTP() {
       setUser(data.user);
       setPendingEmail(null);
       setPendingOtp(null);
-      // If name or phone missing → mandatory setup screen
-      navigate(!data.user.phone ? '/setup' : '/');
+      // If phone missing → mandatory setup, then back to invite; else go to invite or home
+      const dest = invite ? `/invite/${invite}` : '/';
+      navigate(!data.user.phone ? `/setup${invite ? `?invite=${invite}` : ''}` : dest);
     } catch (err: unknown) {
       const raw = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
       const msg = typeof raw === 'string' ? raw : undefined;

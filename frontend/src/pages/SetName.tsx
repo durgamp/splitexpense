@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { authApi, setTokens } from '@/services/api';
@@ -7,6 +7,8 @@ import { useAuthStore } from '@/store/auth.store';
 
 export default function SetupProfile() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const invite = searchParams.get('invite');
   const { setUser, user } = useAuthStore();
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
@@ -25,7 +27,7 @@ export default function SetupProfile() {
       const { data } = await authApi.setup(fullPhone);
       setTokens(data.accessToken, data.refreshToken);
       setUser(data.user);
-      navigate('/');
+      navigate(invite ? `/invite/${invite}` : '/');
     } catch (err: unknown) {
       const raw = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
       const msg = typeof raw === 'string' ? raw : undefined;
