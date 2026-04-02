@@ -12,13 +12,14 @@ if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'dev-secret-change-i
 
 export interface AccessTokenPayload {
   sub: string;   // userId
-  phone: string;
+  email: string;
+  phone: string; // empty string if user hasn't completed setup yet
 }
 
 /** Sign a short-lived access token. */
-export function signAccessToken(userId: string, phone: string): string {
+export function signAccessToken(userId: string, email: string, phone: string): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return jwt.sign({ sub: userId, phone } as AccessTokenPayload, JWT_SECRET, {
+  return jwt.sign({ sub: userId, email, phone } as AccessTokenPayload, JWT_SECRET, {
     expiresIn: ACCESS_EXPIRES as any,
     issuer: 'splitease',
     audience: 'splitease-client',

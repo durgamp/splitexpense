@@ -3,7 +3,8 @@ import { verifyAccessToken } from '../utils/token.js';
 
 /**
  * Middleware: validates the Bearer token in Authorization header.
- * Sets req.userId and req.userPhone on success.
+ * Sets req.userId, req.userEmail, and req.userPhone on success.
+ * req.userPhone is empty string for users who haven't completed setup yet.
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
@@ -18,6 +19,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   try {
     const payload = verifyAccessToken(token);
     req.userId = payload.sub;
+    req.userEmail = payload.email;
     req.userPhone = payload.phone;
     next();
   } catch {

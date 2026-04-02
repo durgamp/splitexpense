@@ -2,17 +2,18 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '@/types';
 
-type AuthStatus = 'unknown' | 'unauthenticated' | 'needs-name' | 'authenticated';
+// needs-setup: email verified, JWT issued, but name + phone not yet collected
+type AuthStatus = 'unknown' | 'unauthenticated' | 'needs-setup' | 'authenticated';
 
 interface AuthState {
   status: AuthStatus;
   user: User | null;
-  pendingPhone: string | null;
+  pendingEmail: string | null;
   pendingOtp: string | null;
 
   setStatus: (s: AuthStatus) => void;
   setUser: (user: User) => void;
-  setPendingPhone: (phone: string | null) => void;
+  setPendingEmail: (email: string | null) => void;
   setPendingOtp: (otp: string | null) => void;
   updateName: (name: string) => void;
   reset: () => void;
@@ -23,15 +24,16 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       status: 'unknown',
       user: null,
-      pendingPhone: null,
+      pendingEmail: null,
       pendingOtp: null,
 
       setStatus: (status) => set({ status }),
 
+      // Authenticated once phone is set; name can be added later from Profile
       setUser: (user) =>
-        set({ user, status: user.name ? 'authenticated' : 'needs-name' }),
+        set({ user, status: user.phone ? 'authenticated' : 'needs-setup' }),
 
-      setPendingPhone: (pendingPhone) => set({ pendingPhone }),
+      setPendingEmail: (pendingEmail) => set({ pendingEmail }),
 
       setPendingOtp: (pendingOtp) => set({ pendingOtp }),
 
@@ -42,11 +44,11 @@ export const useAuthStore = create<AuthState>()(
         })),
 
       reset: () =>
-        set({ status: 'unauthenticated', user: null, pendingPhone: null, pendingOtp: null }),
+        set({ status: 'unauthenticated', user: null, pendingEmail: null, pendingOtp: null }),
     }),
     {
       name: 'splitease-auth',
-      partialize: (s) => ({ user: s.user, pendingPhone: s.pendingPhone, pendingOtp: s.pendingOtp }),
+      partialize: (s) => ({ user: s.user, pendingEmail: s.pendingEmail, pendingOtp: s.pendingOtp }),
     }
   )
 );

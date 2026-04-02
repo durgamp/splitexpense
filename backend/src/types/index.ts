@@ -2,7 +2,8 @@
 
 export interface UserRow {
   id: string;
-  phone: string;
+  email: string | null;
+  phone: string | null;
   name: string;
   created_at: number;
   last_active_at: number;
@@ -10,7 +11,7 @@ export interface UserRow {
 
 export interface OtpRow {
   id: string;
-  phone: string;
+  email: string;
   code_hash: string;
   expires_at: number;
   attempts: number;
@@ -28,6 +29,7 @@ export interface RefreshTokenRow {
 export interface GroupRow {
   id: string;
   name: string;
+  type: 'group' | 'direct';
   created_by: string;
   invite_token: string;
   invite_token_created_at: number;
@@ -52,10 +54,23 @@ export interface ExpenseRow {
   amount_paise: number;
   paid_by_phone: string;
   category: string;
+  split_type: string;
+  notes: string | null;
   created_by: string;
   created_at: number;
   updated_at: number;
   deleted_at: number | null;
+}
+
+export interface PaymentRow {
+  id: string;
+  group_id: string;
+  from_phone: string;
+  to_phone: string;
+  amount_paise: number;
+  notes: string | null;
+  created_by: string;
+  created_at: number;
 }
 
 export interface ExpenseShareRow {
@@ -68,7 +83,8 @@ export interface ExpenseShareRow {
 
 export interface User {
   id: string;
-  phone: string;
+  email: string;
+  phone: string;  // empty string if not yet set during setup
   name: string;
   createdAt: number;
   lastActiveAt: number;
@@ -107,10 +123,23 @@ export interface Expense {
   paidByPhone: string;
   shares: ExpenseShare[];
   category: string;
+  splitType: string;
+  notes: string | null;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
+}
+
+export interface Payment {
+  id: string;
+  groupId: string;
+  fromPhone: string;
+  toPhone: string;
+  amountPaise: number;
+  notes: string | null;
+  createdBy: string;
+  createdAt: number;
 }
 
 export interface NetBalance {
@@ -133,6 +162,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      userEmail?: string;
       userPhone?: string;
     }
   }

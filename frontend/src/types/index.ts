@@ -1,5 +1,6 @@
 export interface User {
   id: string;
+  email: string;
   phone: string;
   name: string;
   createdAt: number;
@@ -19,6 +20,7 @@ export interface GroupMember {
 export interface Group {
   id: string;
   name: string;
+  type: 'group' | 'direct';
   createdBy: string;
   createdAt: number;
   members: GroupMember[];
@@ -35,6 +37,13 @@ export type ExpenseCategory =
   | 'food' | 'transport' | 'accommodation'
   | 'entertainment' | 'utilities' | 'shopping' | 'other';
 
+export type SplitType = 'equal' | 'exact' | 'percentage' | 'shares';
+
+export interface CustomSplit {
+  phone: string;
+  value: number;
+}
+
 export interface Expense {
   id: string;
   groupId: string;
@@ -43,10 +52,23 @@ export interface Expense {
   paidByPhone: string;
   shares: ExpenseShare[];
   category: ExpenseCategory;
+  splitType: SplitType;
+  notes: string | null;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
+}
+
+export interface Payment {
+  id: string;
+  groupId: string;
+  fromPhone: string;
+  toPhone: string;
+  amountPaise: number;
+  notes: string | null;
+  createdBy: string;
+  createdAt: number;
 }
 
 export interface NetBalance {

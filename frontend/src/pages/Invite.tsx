@@ -24,7 +24,7 @@ export default function Invite() {
   }, [token]);
 
   useEffect(() => {
-    if (state === 'preview' && (status === 'unauthenticated' || status === 'needs-name')) {
+    if (state === 'preview' && (status === 'unauthenticated' || status === 'needs-setup')) {
       navigate(`/login?invite=${token}`);
     }
   }, [state, status]);

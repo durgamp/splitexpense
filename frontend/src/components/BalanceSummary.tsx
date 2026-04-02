@@ -8,7 +8,7 @@ interface Props {
   settlements: Settlement[];
   netBalances: NetBalance[];
   myPhone: string;
-  onSettle?: (s: Settlement) => Promise<void>;
+  onSettle?: (s: Settlement) => void | Promise<void>;
 }
 
 export function BalanceSummary({ settlements, netBalances, myPhone, onSettle }: Props) {

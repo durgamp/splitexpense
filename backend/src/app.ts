@@ -7,9 +7,11 @@ import { apiLimiter } from './middleware/rateLimit.js';
 import authRouter from './routes/auth.js';
 import groupsRouter from './routes/groups.js';
 import expensesRouter from './routes/expenses.js';
+import paymentsRouter from './routes/payments.js';
 import invitesRouter from './routes/invites.js';
 import analyticsRouter from './routes/analytics.js';
 import contactsRouter from './routes/contacts.js';
+import friendsRouter from './routes/friends.js';
 
 const app = express();
 
@@ -57,6 +59,8 @@ app.use('/api', apiLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api/groups/:id/expenses', expensesRouter);
+app.use('/api/groups/:id/payments', paymentsRouter);
+app.use('/api/friends', friendsRouter);
 app.use('/api/invite', invitesRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/contacts', contactsRouter);

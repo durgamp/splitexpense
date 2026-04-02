@@ -103,8 +103,11 @@ export function clearTokens(): void {
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const authApi = {
-  requestOtp: (phone: string) => api.post('/auth/request-otp', { phone }),
-  verifyOtp: (phone: string, code: string) => api.post('/auth/verify-otp', { phone, code }),
+  requestOtp: (email: string) => api.post('/auth/request-otp', { email }),
+  verifyOtp: (email: string, code: string) => api.post('/auth/verify-otp', { email, code }),
+  /** Called once after first login to save the mandatory phone number. Returns fresh tokens. */
+  setup: (phone: string) => api.patch('/auth/setup', { phone }),
+  /** Update display name from Profile screen (after setup is complete). */
   setName: (name: string) => api.patch('/auth/name', { name }),
   refresh: (refreshToken: string) => api.post('/auth/refresh', { refreshToken }),
   logout: (refreshToken: string) => api.delete('/auth/logout', { data: { refreshToken } }),
@@ -122,12 +125,17 @@ export const groupsApi = {
 };
 
 // ── Expenses ──────────────────────────────────────────────────────────────────
+export interface CustomSplitPayload { phone: string; value: number; }
+
 export interface ExpensePayload {
   description: string;
   amountRupees: number;
   paidByPhone: string;
   participantPhones: string[];
   category: string;
+  splitType?: 'equal' | 'exact' | 'percentage' | 'shares';
+  splits?: CustomSplitPayload[];
+  notes?: string;
 }
 
 export const expensesApi = {
@@ -138,6 +146,28 @@ export const expensesApi = {
     api.put(`/groups/${groupId}/expenses/${expenseId}`, data),
   delete: (groupId: string, expenseId: string) =>
     api.delete(`/groups/${groupId}/expenses/${expenseId}`),
+};
+
+// ── Payments ──────────────────────────────────────────────────────────────────
+export interface PaymentPayload {
+  fromPhone: string;
+  toPhone: string;
+  amountRupees: number;
+  notes?: string;
+}
+
+export const paymentsApi = {
+  list: (groupId: string) => api.get(`/groups/${groupId}/payments`),
+  create: (groupId: string, data: PaymentPayload) =>
+    api.post(`/groups/${groupId}/payments`, data),
+  delete: (groupId: string, paymentId: string) =>
+    api.delete(`/groups/${groupId}/payments/${paymentId}`),
+};
+
+// ── Friends ───────────────────────────────────────────────────────────────────
+export const friendsApi = {
+  list: () => api.get('/friends'),
+  add: (phone: string, name: string) => api.post('/friends', { phone, name }),
 };
 
 // ── Invites ───────────────────────────────────────────────────────────────────

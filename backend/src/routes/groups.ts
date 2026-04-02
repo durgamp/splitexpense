@@ -19,6 +19,7 @@ function buildGroup(row: GroupRow, db: ReturnType<typeof getDb>) {
   return {
     id: row.id,
     name: row.name,
+    type: row.type ?? 'group',
     createdBy: row.created_by,
     createdAt: row.created_at,
     inviteToken: row.invite_token,
@@ -50,17 +51,17 @@ const createGroupSchema = z.object({
 const renameSchema = z.object({ name: z.string().min(1).max(80).trim() });
 
 // ── GET /groups ───────────────────────────────────────────────────────────────
+// Only returns regular groups (type='group'). Direct friend groups are in /friends.
 router.get('/', (req, res) => {
   const db = getDb();
   const groupRows = asRows<GroupRow>(db
     .prepare(`
       SELECT g.* FROM groups g
       JOIN group_members gm ON gm.group_id = g.id
-      WHERE gm.phone = ? AND gm.status != 'removed'
+      WHERE gm.phone = ? AND gm.status != 'removed' AND (g.type IS NULL OR g.type = 'group')
       ORDER BY g.created_at DESC
     `)
     .all(req.userPhone!));
-
   res.json({ groups: groupRows.map((r) => buildGroup(r, db)) });
 });
 

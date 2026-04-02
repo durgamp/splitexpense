@@ -56,12 +56,26 @@ export default function Profile() {
               </div>
             </div>
           ) : (
-            <div className="text-center">
-              <div className="flex items-center gap-2 justify-center">
+            <div className="text-center w-full">
+              <div className="flex items-center gap-2 justify-center mb-3">
                 <h2 className="text-xl font-bold text-gray-900">{user?.name}</h2>
                 <button onClick={() => setEditing(true)} className="text-primary text-sm font-medium">Edit</button>
               </div>
-              <p className="text-gray-400">{user?.phone}</p>
+
+              <div className="flex flex-col gap-2 text-sm text-gray-500">
+                {user?.email && (
+                  <div className="flex items-center gap-2 justify-center">
+                    <span className="text-gray-400">✉</span>
+                    <span>{user.email}</span>
+                  </div>
+                )}
+                {user?.phone && (
+                  <div className="flex items-center gap-2 justify-center">
+                    <span className="text-gray-400">📱</span>
+                    <span>{user.phone}</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

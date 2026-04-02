@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 const NAV = [
   { to: '/', label: 'Groups', icon: '👥' },
+  { to: '/friends', label: 'Friends', icon: '🤝' },
   { to: '/analytics', label: 'Analytics', icon: '📊' },
   { to: '/profile', label: 'Profile', icon: '👤' },
 ];

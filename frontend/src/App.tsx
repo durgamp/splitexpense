@@ -5,13 +5,14 @@ import { useAuthStore } from '@/store/auth.store';
 // Pages (lazy-loaded for performance)
 const Login = React.lazy(() => import('@/pages/Login'));
 const OTP = React.lazy(() => import('@/pages/OTP'));
-const SetName = React.lazy(() => import('@/pages/SetName'));
+const SetupProfile = React.lazy(() => import('@/pages/SetName'));
 const Groups = React.lazy(() => import('@/pages/Groups'));
 const GroupDetail = React.lazy(() => import('@/pages/GroupDetail'));
 const CreateGroup = React.lazy(() => import('@/pages/CreateGroup'));
 const AddExpense = React.lazy(() => import('@/pages/AddExpense'));
 const Analytics = React.lazy(() => import('@/pages/Analytics'));
 const Profile = React.lazy(() => import('@/pages/Profile'));
+const Friends = React.lazy(() => import('@/pages/Friends'));
 const Invite = React.lazy(() => import('@/pages/Invite'));
 
 function Spinner() {
@@ -50,7 +51,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-/** Redirects unauthenticated users to /login, users without a name to /set-name. */
+/** Redirects unauthenticated users to /login, users without profile to /setup. */
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { status } = useAuthStore();
   const location = useLocation();
@@ -61,8 +62,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (status === 'needs-name') {
-    return <Navigate to="/set-name" replace />;
+  if (status === 'needs-setup') {
+    return <Navigate to="/setup" replace />;
   }
 
   return <>{children}</>;
@@ -75,7 +76,7 @@ function GuestGuard({ children }: { children: React.ReactNode }) {
   if (status === 'unknown') return <Spinner />;
 
   if (status === 'authenticated') return <Navigate to="/" replace />;
-  if (status === 'needs-name') return <Navigate to="/set-name" replace />;
+  if (status === 'needs-setup') return <Navigate to="/setup" replace />;
 
   return <>{children}</>;
 }
@@ -93,7 +94,7 @@ function AuthInitializer() {
     if (!accessToken && !refreshToken) {
       reset();
     } else if (user) {
-      setStatus(user.name ? 'authenticated' : 'needs-name');
+      setStatus(user.phone ? 'authenticated' : 'needs-setup');
     } else {
       reset();
     }
@@ -112,7 +113,8 @@ export default function App() {
             {/* Public auth routes */}
             <Route path="/login" element={<GuestGuard><Login /></GuestGuard>} />
             <Route path="/otp" element={<GuestGuard><OTP /></GuestGuard>} />
-            <Route path="/set-name" element={<SetName />} />
+            {/* Setup is accessible whenever — AuthGuard redirects needs-setup users here */}
+            <Route path="/setup" element={<SetupProfile />} />
 
             {/* Public invite route (auth handled inside Invite page) */}
             <Route path="/invite/:token" element={<Invite />} />
@@ -122,6 +124,7 @@ export default function App() {
             <Route path="/group/new" element={<AuthGuard><CreateGroup /></AuthGuard>} />
             <Route path="/group/:id" element={<AuthGuard><GroupDetail /></AuthGuard>} />
             <Route path="/group/:id/add-expense" element={<AuthGuard><AddExpense /></AuthGuard>} />
+            <Route path="/friends" element={<AuthGuard><Friends /></AuthGuard>} />
             <Route path="/analytics" element={<AuthGuard><Analytics /></AuthGuard>} />
             <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
 

@@ -9,7 +9,7 @@ const COOLDOWN = 30;
 
 export default function OTP() {
   const navigate = useNavigate();
-  const { pendingPhone, pendingOtp, setUser, setPendingPhone, setPendingOtp, status } = useAuthStore();
+  const { pendingEmail, pendingOtp, setUser, setPendingEmail, setPendingOtp, status } = useAuthStore();
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,10 +17,10 @@ export default function OTP() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!pendingPhone && status !== 'authenticated' && status !== 'needs-name') {
+    if (!pendingEmail && status !== 'authenticated' && status !== 'needs-setup') {
       navigate('/login');
     }
-  }, [pendingPhone, status]);
+  }, [pendingEmail, status]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -32,12 +32,13 @@ export default function OTP() {
     if (code.length !== OTP_LEN) return;
     setError(''); setLoading(true);
     try {
-      const { data } = await authApi.verifyOtp(pendingPhone!, code);
+      const { data } = await authApi.verifyOtp(pendingEmail!, code);
       setTokens(data.accessToken, data.refreshToken);
       setUser(data.user);
-      setPendingPhone(null);
+      setPendingEmail(null);
       setPendingOtp(null);
-      navigate(data.isNewUser || !data.user.name ? '/set-name' : '/');
+      // If name or phone missing → mandatory setup screen
+      navigate(!data.user.phone ? '/setup' : '/');
     } catch (err: unknown) {
       const raw = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
       const msg = typeof raw === 'string' ? raw : undefined;
@@ -46,9 +47,9 @@ export default function OTP() {
   }
 
   async function resend() {
-    if (cooldown > 0 || !pendingPhone) return;
+    if (cooldown > 0 || !pendingEmail) return;
     try {
-      const { data } = await authApi.requestOtp(pendingPhone);
+      const { data } = await authApi.requestOtp(pendingEmail);
       setPendingOtp(data.otp ?? null);
       setCooldown(COOLDOWN);
       setError('');
@@ -61,7 +62,7 @@ export default function OTP() {
         <button onClick={() => navigate('/login')} className="text-primary text-sm font-medium mb-8">← Back</button>
 
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Enter the code</h2>
-        <p className="text-gray-500 text-sm mb-3">Sent to {pendingPhone}</p>
+        <p className="text-gray-500 text-sm mb-3">Sent to <span className="font-medium">{pendingEmail}</span></p>
 
         {/* Show OTP code whenever backend returns it (dev mode or OTP_DEV_EXPOSE=true) */}
         {pendingOtp && (

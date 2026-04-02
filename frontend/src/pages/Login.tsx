@@ -7,22 +7,23 @@ import { useAuthStore } from '@/store/auth.store';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { setPendingPhone, setPendingOtp } = useAuthStore();
-  const [phone, setPhone] = useState('');
-  const [countryCode, setCountryCode] = useState('+91');
+  const { setPendingEmail, setPendingOtp } = useAuthStore();
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    const full = `${countryCode}${phone.replace(/\D/g, '')}`;
-    if (!/^\+[1-9]\d{6,14}$/.test(full)) { setError('Enter a valid phone number'); return; }
+    const trimmed = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setError('Enter a valid email address');
+      return;
+    }
 
     setError(''); setLoading(true);
     try {
-      const { data } = await authApi.requestOtp(full);
-      setPendingPhone(full);
-      // Store OTP in Zustand so OTP page can display it (works in both dev and prod)
+      const { data } = await authApi.requestOtp(trimmed);
+      setPendingEmail(trimmed);
       setPendingOtp(data.otp ?? null);
       navigate('/otp');
     } catch (err: unknown) {
@@ -43,24 +44,26 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSend} className="flex flex-col gap-4">
-          <h2 className="text-2xl font-bold text-gray-900">Enter your number</h2>
-          <p className="text-gray-500 text-sm">We'll send a one-time code to verify it's you.</p>
+          <h2 className="text-2xl font-bold text-gray-900">Sign in</h2>
+          <p className="text-gray-500 text-sm">We'll send a one-time code to your email.</p>
 
-          <div className="flex gap-2">
-            <Input value={countryCode} onChange={(e) => setCountryCode(e.target.value)}
-              className="w-16" maxLength={4} />
-            <div className="flex-1">
-              <Input value={phone} onChange={(e) => { setPhone(e.target.value); setError(''); }}
-                placeholder="98765 43210" type="tel" autoFocus error={error} />
-            </div>
-          </div>
+          <Input
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(''); }}
+            placeholder="you@example.com"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoFocus
+            error={error}
+          />
 
           <Button type="submit" fullWidth size="lg" loading={loading}>
             Send OTP
           </Button>
 
           <p className="text-xs text-center text-gray-400">
-            By continuing, you agree to our Terms & Privacy Policy.
+            By continuing, you agree to our Terms &amp; Privacy Policy.
           </p>
         </form>
       </div>
