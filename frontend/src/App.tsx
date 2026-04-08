@@ -14,6 +14,7 @@ const Analytics = React.lazy(() => import('@/pages/Analytics'));
 const Profile = React.lazy(() => import('@/pages/Profile'));
 const Friends = React.lazy(() => import('@/pages/Friends'));
 const Invite = React.lazy(() => import('@/pages/Invite'));
+const ForgotPassword = React.lazy(() => import('@/pages/ForgotPassword'));
 
 function Spinner() {
   return (
@@ -113,6 +114,7 @@ export default function App() {
             {/* Public auth routes */}
             <Route path="/login" element={<GuestGuard><Login /></GuestGuard>} />
             <Route path="/otp" element={<GuestGuard><OTP /></GuestGuard>} />
+            <Route path="/forgot-password" element={<GuestGuard><ForgotPassword /></GuestGuard>} />
             {/* Setup is accessible whenever — AuthGuard redirects needs-setup users here */}
             <Route path="/setup" element={<SetupProfile />} />
 

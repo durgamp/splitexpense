@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { getDb, asRows } from '../database/index.js';
+import { getRequest, toNum, sql } from '../database/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 import type { ExpenseRow, ExpenseShareRow } from '../types/index.js';
 
 const router = Router();
@@ -12,17 +13,18 @@ function formatMonth(epochMs: number): string {
 }
 
 // ── GET /analytics ────────────────────────────────────────────────────────────
-router.get('/', (req, res) => {
-  const db = getDb();
+router.get('/', asyncHandler(async (req, res) => {
   const myPhone = req.userPhone!;
 
   // All expenses across groups the user belongs to
-  const expenses = asRows<ExpenseRow>(db.prepare(`
-    SELECT e.* FROM expenses e
-    JOIN group_members gm ON gm.group_id = e.group_id
-    WHERE gm.phone = ? AND gm.status = 'active' AND e.deleted_at IS NULL
-    ORDER BY e.created_at DESC
-  `).all(myPhone));
+  const expenses = (await (await getRequest())
+    .input('phone', sql.NVarChar(20), myPhone)
+    .query(`
+      SELECT e.* FROM expenses e
+      JOIN group_members gm ON gm.group_id = e.group_id
+      WHERE gm.phone = @phone AND gm.status = 'active' AND e.deleted_at IS NULL
+      ORDER BY e.created_at DESC
+    `)).recordset as ExpenseRow[];
 
   if (expenses.length === 0) {
     res.json({ totalPaidPaise: 0, totalSharePaise: 0, monthly: [], byCategory: [], byGroup: [] });
@@ -31,21 +33,26 @@ router.get('/', (req, res) => {
 
   const expenseIds = expenses.map((e) => e.id);
 
-  // Fetch all my shares in a single query
-  const myShares: Record<string, number> = {};
-  const placeholders = expenseIds.map(() => '?').join(',');
-  const shareRows = asRows<ExpenseShareRow>(db.prepare(
-    `SELECT * FROM expense_shares WHERE expense_id IN (${placeholders}) AND phone = ?`
-  ).all(...expenseIds, myPhone));
-  for (const r of shareRows) myShares[r.expense_id] = r.amount_paise;
+  // Fetch all my shares — build named params dynamically (safe: IDs are internal UUIDs)
+  const shareReq = await getRequest();
+  shareReq.input('myPhone', sql.NVarChar(20), myPhone);
+  expenseIds.forEach((id, i) => shareReq.input(`eid${i}`, sql.NVarChar(36), id));
+  const inList = expenseIds.map((_, i) => `@eid${i}`).join(',');
+  const shareRows = (await shareReq.query(
+    `SELECT * FROM expense_shares WHERE expense_id IN (${inList}) AND phone = @myPhone`
+  )).recordset as ExpenseShareRow[];
 
-  // Batch-fetch all unique group names in one query — avoids N+1
+  const myShares: Record<string, number> = {};
+  for (const r of shareRows) myShares[r.expense_id] = toNum(r.amount_paise);
+
+  // Batch-fetch all unique group names
   const groupIds = [...new Set(expenses.map((e) => e.group_id))];
-  const groupPlaceholders = groupIds.map(() => '?').join(',');
+  const groupReq = await getRequest();
+  groupIds.forEach((id, i) => groupReq.input(`gid${i}`, sql.NVarChar(36), id));
+  const groupInList = groupIds.map((_, i) => `@gid${i}`).join(',');
   const groupNameMap: Record<string, string> = {};
-  asRows<{ id: string; name: string }>(db.prepare(
-    `SELECT id, name FROM groups WHERE id IN (${groupPlaceholders})`
-  ).all(...groupIds)).forEach((g) => { groupNameMap[g.id] = g.name; });
+  (await groupReq.query(`SELECT id, name FROM groups WHERE id IN (${groupInList})`))
+    .recordset.forEach((g: { id: string; name: string }) => { groupNameMap[g.id] = g.name; });
 
   let totalPaidPaise = 0;
   let totalSharePaise = 0;
@@ -54,19 +61,22 @@ router.get('/', (req, res) => {
   const groupSpendMap: Record<string, { name: string; paise: number }> = {};
 
   for (const e of expenses) {
-    if (e.paid_by_phone === myPhone) totalPaidPaise += e.amount_paise;
+    const amountPaise = toNum(e.amount_paise);
+    const createdAt   = toNum(e.created_at);
+
+    if (e.paid_by_phone === myPhone) totalPaidPaise += amountPaise;
     const share = myShares[e.id] ?? 0;
     totalSharePaise += share;
 
     if (share > 0) {
-      const month = formatMonth(e.created_at);
+      const month = formatMonth(createdAt);
       monthlyMap[month] = (monthlyMap[month] ?? 0) + share;
       categoryMap[e.category] = (categoryMap[e.category] ?? 0) + share;
     }
 
     const groupName = groupNameMap[e.group_id] ?? e.group_id;
     if (!groupSpendMap[e.group_id]) groupSpendMap[e.group_id] = { name: groupName, paise: 0 };
-    groupSpendMap[e.group_id].paise += e.amount_paise;
+    groupSpendMap[e.group_id].paise += amountPaise;
   }
 
   const monthly = Object.entries(monthlyMap)
@@ -83,6 +93,6 @@ router.get('/', (req, res) => {
     .map(([groupId, v]) => ({ groupId, name: v.name, paise: v.paise }));
 
   res.json({ totalPaidPaise, totalSharePaise, monthly, byCategory, byGroup });
-});
+}));
 
 export default router;

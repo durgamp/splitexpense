@@ -9,6 +9,9 @@ frontend/dist/
 # Environment secrets — never commit
 .env
 backend/.env
+backend-python/.env
+frontend-next/.env.local
+frontend-next/.env*.local
 
 # SQLite database files
 *.db
@@ -24,6 +27,16 @@ Thumbs.db
 
 # npm lock files (project uses pnpm)
 package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+backend-python/venv/
+backend-python/.venv/
+backend-python/*.egg-info/
 
 # Logs
 *.log

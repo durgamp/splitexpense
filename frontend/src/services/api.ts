@@ -120,6 +120,7 @@ export const groupsApi = {
     api.post('/groups', { name, members }),
   get: (id: string) => api.get(`/groups/${id}`),
   rename: (id: string, name: string) => api.patch(`/groups/${id}`, { name }),
+  delete: (id: string) => api.delete(`/groups/${id}`),
   addMember: (id: string, phone: string, name: string) =>
     api.post(`/groups/${id}/members`, { phone, name }),
 };

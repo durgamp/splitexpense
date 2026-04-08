@@ -1,8 +1,9 @@
 import { Router, type Request } from 'express';
 import { z } from 'zod';
-import { getDb, asRow, asRows } from '../database/index.js';
+import { getRequest, toNum, sql } from '../database/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 import { newId } from '../utils/id.js';
 import type { PaymentRow } from '../types/index.js';
 
@@ -25,38 +26,41 @@ function buildPayment(row: PaymentRow) {
     groupId: row.group_id,
     fromPhone: row.from_phone,
     toPhone: row.to_phone,
-    amountPaise: row.amount_paise,
+    amountPaise: toNum(row.amount_paise),
     notes: row.notes ?? null,
     createdBy: row.created_by,
-    createdAt: row.created_at,
+    createdAt: toNum(row.created_at),
   };
 }
 
-function assertMember(db: ReturnType<typeof getDb>, groupId: string, phone: string): boolean {
-  return !!db
-    .prepare("SELECT 1 FROM group_members WHERE group_id = ? AND phone = ? AND status = 'active'")
-    .get(groupId, phone);
+async function assertMember(groupId: string, phone: string): Promise<boolean> {
+  const result = await (await getRequest())
+    .input('groupId', sql.NVarChar(36), groupId)
+    .input('phone',   sql.NVarChar(20), phone)
+    .query("SELECT 1 AS one FROM group_members WHERE group_id = @groupId AND phone = @phone AND status = 'active'");
+  return result.recordset.length > 0;
 }
 
 // ── GET /groups/:id/payments ──────────────────────────────────────────────────
-router.get('/', (req: Request<GroupParams>, res) => {
-  const db = getDb();
-  if (!assertMember(db, req.params.id, req.userPhone!)) {
+router.get('/', asyncHandler(async (req: Request<GroupParams>, res) => {
+  if (!(await assertMember(req.params.id, req.userPhone!))) {
     res.status(403).json({ error: 'Not a member of this group' });
     return;
   }
-  const rows = asRows<PaymentRow>(db
-    .prepare('SELECT * FROM payments WHERE group_id = ? ORDER BY created_at DESC')
-    .all(req.params.id));
+
+  const rows = (await (await getRequest())
+    .input('groupId', sql.NVarChar(36), req.params.id)
+    .query('SELECT * FROM payments WHERE group_id = @groupId ORDER BY created_at DESC'))
+    .recordset as PaymentRow[];
+
   res.json({ payments: rows.map(buildPayment) });
-});
+}));
 
 // ── POST /groups/:id/payments ─────────────────────────────────────────────────
-router.post('/', validate(paymentSchema), (req: Request<GroupParams>, res) => {
+router.post('/', validate(paymentSchema), asyncHandler(async (req: Request<GroupParams>, res) => {
   const body = req.body as z.infer<typeof paymentSchema>;
-  const db = getDb();
 
-  if (!assertMember(db, req.params.id, req.userPhone!)) {
+  if (!(await assertMember(req.params.id, req.userPhone!))) {
     res.status(403).json({ error: 'Not a member of this group' });
     return;
   }
@@ -64,11 +68,11 @@ router.post('/', validate(paymentSchema), (req: Request<GroupParams>, res) => {
     res.status(400).json({ error: 'Cannot record a payment to yourself' });
     return;
   }
-  if (!assertMember(db, req.params.id, body.fromPhone)) {
+  if (!(await assertMember(req.params.id, body.fromPhone))) {
     res.status(400).json({ error: 'Payer is not an active group member' });
     return;
   }
-  if (!assertMember(db, req.params.id, body.toPhone)) {
+  if (!(await assertMember(req.params.id, body.toPhone))) {
     res.status(400).json({ error: 'Payee is not an active group member' });
     return;
   }
@@ -77,22 +81,34 @@ router.post('/', validate(paymentSchema), (req: Request<GroupParams>, res) => {
   const id = newId();
   const now = Date.now();
 
-  db.prepare(`
-    INSERT INTO payments (id, group_id, from_phone, to_phone, amount_paise, notes, created_by, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, req.params.id, body.fromPhone, body.toPhone, amountPaise,
-         body.notes ?? null, req.userId!, now);
+  await (await getRequest())
+    .input('id',          sql.NVarChar(36),  id)
+    .input('groupId',     sql.NVarChar(36),  req.params.id)
+    .input('fromPhone',   sql.NVarChar(20),  body.fromPhone)
+    .input('toPhone',     sql.NVarChar(20),  body.toPhone)
+    .input('amountPaise', sql.BigInt,        BigInt(amountPaise))
+    .input('notes',       sql.NVarChar(200), body.notes ?? null as unknown as string)
+    .input('createdBy',   sql.NVarChar(36),  req.userId!)
+    .input('now',         sql.BigInt,        BigInt(now))
+    .query(`
+      INSERT INTO payments (id, group_id, from_phone, to_phone, amount_paise, notes, created_by, created_at)
+      VALUES (@id, @groupId, @fromPhone, @toPhone, @amountPaise, @notes, @createdBy, @now)
+    `);
 
-  const row = asRow<PaymentRow>(db.prepare('SELECT * FROM payments WHERE id = ?').get(id));
+  const row = (await (await getRequest())
+    .input('id', sql.NVarChar(36), id)
+    .query('SELECT * FROM payments WHERE id = @id')).recordset[0] as PaymentRow;
+
   res.status(201).json({ payment: buildPayment(row) });
-});
+}));
 
 // ── DELETE /groups/:id/payments/:pid ─────────────────────────────────────────
-router.delete('/:pid', (req: Request<PaymentParams>, res) => {
-  const db = getDb();
-  const row = asRow<PaymentRow | undefined>(db
-    .prepare('SELECT * FROM payments WHERE id = ? AND group_id = ?')
-    .get(req.params.pid, req.params.id));
+router.delete('/:pid', asyncHandler(async (req: Request<PaymentParams>, res) => {
+  const row = (await (await getRequest())
+    .input('pid',     sql.NVarChar(36), req.params.pid)
+    .input('groupId', sql.NVarChar(36), req.params.id)
+    .query('SELECT * FROM payments WHERE id = @pid AND group_id = @groupId'))
+    .recordset[0] as PaymentRow | undefined;
 
   if (!row) { res.status(404).json({ error: 'Payment not found' }); return; }
   if (row.created_by !== req.userId!) {
@@ -100,8 +116,11 @@ router.delete('/:pid', (req: Request<PaymentParams>, res) => {
     return;
   }
 
-  db.prepare('DELETE FROM payments WHERE id = ?').run(row.id);
+  await (await getRequest())
+    .input('id', sql.NVarChar(36), row.id)
+    .query('DELETE FROM payments WHERE id = @id');
+
   res.json({ success: true });
-});
+}));
 
 export default router;

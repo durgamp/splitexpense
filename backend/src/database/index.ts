@@ -1,46 +1,81 @@
-import { DatabaseSync } from 'node:sqlite';
-import path from 'path';
-import fs from 'fs';
-import { runMigrations } from './migrations';
+import * as sql from 'mssql';
 
-const DB_PATH = process.env.VERCEL
-  ? '/tmp/splitease.db'
-  : path.resolve(process.cwd(), process.env.DB_PATH ?? 'database/splitease.db');
+// ── Connection config ─────────────────────────────────────────────────────────
 
-let _db: DatabaseSync | null = null;
+const config: sql.config = {
+  server: process.env.DB_SERVER ?? 'localhost',
+  database: process.env.DB_NAME ?? 'SplitEase',
+  user: process.env.DB_USER ?? 'sa',
+  password: process.env.DB_PASS ?? '',
+  port: Number(process.env.DB_PORT ?? 1433),
+  options: {
+    // true for Azure SQL; false for on-prem / local SSMS
+    encrypt: process.env.DB_ENCRYPT !== 'false',
+    // allow self-signed certs in non-production (SSMS local dev)
+    trustServerCertificate: process.env.NODE_ENV !== 'production',
+    enableArithAbort: true,
+  },
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30_000,
+  },
+  connectionTimeout: 15_000,
+  requestTimeout: 15_000,
+};
 
-export function getDb(): DatabaseSync {
-  if (_db) return _db;
+let _pool: sql.ConnectionPool | null = null;
 
-  // Ensure the database directory exists
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+// ── Pool singleton ────────────────────────────────────────────────────────────
 
-  _db = new DatabaseSync(DB_PATH);
+export async function getPool(): Promise<sql.ConnectionPool> {
+  if (_pool?.connected) return _pool;
+  _pool = await new sql.ConnectionPool(config).connect();
+  console.log('[DB] Connected to SQL Server:', config.server, '/', config.database);
+  return _pool;
+}
 
-  // Performance & safety pragmas
-  _db.exec('PRAGMA journal_mode = WAL');     // Write-Ahead Logging — better concurrency
-  _db.exec('PRAGMA foreign_keys = ON');      // Enforce FK constraints
-  _db.exec('PRAGMA busy_timeout = 5000');    // Wait up to 5s on locked db
-  _db.exec('PRAGMA synchronous = NORMAL');   // Safe with WAL, faster than FULL
-  _db.exec('PRAGMA cache_size = -64000');    // 64 MB page cache
-  _db.exec('PRAGMA temp_store = MEMORY');    // Temp tables in memory
-
-  runMigrations(_db);
-
-  return _db;
+/** Return a new Request on the pool (no transaction). */
+export async function getRequest(): Promise<sql.Request> {
+  const pool = await getPool();
+  return pool.request();
 }
 
 /**
- * Type-cast helpers: node:sqlite returns Record<string, SQLOutputValue>.
- * These casts are safe because our schema guarantees the column shapes.
+ * Wrap multiple DB operations in a single serialisable transaction.
+ * Commits on success, rolls back on any thrown error.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function asRow<T>(v: unknown): T { return v as any; }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function asRows<T>(v: unknown): T[] { return v as any; }
+export async function withTransaction<T>(
+  fn: (t: sql.Transaction) => Promise<T>,
+): Promise<T> {
+  const pool = await getPool();
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+  try {
+    const result = await fn(transaction);
+    await transaction.commit();
+    return result;
+  } catch (err) {
+    await transaction.rollback();
+    throw err;
+  }
+}
 
-/** Close the db connection cleanly on process exit. */
-process.on('exit', () => _db?.close());
-// Do NOT call process.exit() in SIGINT/SIGTERM — it crashes Vercel serverless functions.
-process.on('SIGINT', () => _db?.close());
-process.on('SIGTERM', () => _db?.close());
+/** Cast a mssql BIGINT result (BigInt) to JS number safely. */
+export const toNum = (v: unknown): number => Number(v);
+
+// Re-export sql namespace so routes can use sql.NVarChar, sql.BigInt, etc.
+export { sql };
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+
+async function closePool() {
+  if (_pool) {
+    await _pool.close();
+    _pool = null;
+    console.log('[DB] Connection pool closed');
+  }
+}
+
+process.on('SIGINT', () => closePool().then(() => process.exit(0)));
+process.on('SIGTERM', () => closePool().then(() => process.exit(0)));

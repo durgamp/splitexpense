@@ -1,13 +1,17 @@
 import 'dotenv/config';
 import app from './app.js';
-import { getDb } from './database/index.js';
+import { getPool } from './database/index.js';
+import { runMigrations } from './database/migrations.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
-// Eagerly initialize the DB so migration errors surface at startup
-getDb();
+(async () => {
+  // Verify DB connection and run schema migrations before accepting traffic
+  await getPool();
+  await runMigrations();
 
-app.listen(PORT, () => {
-  console.log(`SplitEase API running on http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV ?? 'development'}`);
-});
+  app.listen(PORT, () => {
+    console.log(`SplitEase API running on http://localhost:${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV ?? 'development'}`);
+  });
+})();

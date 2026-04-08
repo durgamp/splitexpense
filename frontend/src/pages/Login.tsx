@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { authApi } from '@/services/api';
@@ -64,9 +64,14 @@ export default function Login() {
             Send OTP
           </Button>
 
-          <p className="text-xs text-center text-gray-400">
-            By continuing, you agree to our Terms &amp; Privacy Policy.
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-400">
+              By continuing, you agree to our Terms &amp; Privacy Policy.
+            </p>
+            <Link to="/forgot-password" className="text-xs text-primary hover:text-primary-dark transition-colors shrink-0 ml-2">
+              Forgot Password?
+            </Link>
+          </div>
         </form>
       </div>
     </div>
