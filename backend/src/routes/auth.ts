@@ -16,7 +16,8 @@ const router = Router();
 const OTP_TTL_MS   = (Number(process.env.OTP_EXPIRES_MINUTES) || 10) * 60 * 1000;
 const REFRESH_TTL_MS = (Number(process.env.JWT_REFRESH_EXPIRES_DAYS) || 7) * 86400 * 1000;
 const OTP_MAX_ATTEMPTS = Number(process.env.OTP_MAX_ATTEMPTS) || 3;
-const DEV_EXPOSE_OTP = process.env.OTP_DEV_EXPOSE === 'true';
+// Always expose OTP in dev mode so the app works without email setup
+const DEV_EXPOSE_OTP = process.env.NODE_ENV !== 'production' || process.env.OTP_DEV_EXPOSE === 'true';
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 

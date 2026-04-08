@@ -75,23 +75,33 @@ async function sendViaResend(to: string, otp: string): Promise<void> {
   }
 }
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 export async function sendOtpEmail(to: string, otp: string): Promise<void> {
   const hasGmail = process.env.SMTP_USER && process.env.SMTP_PASS;
   const hasResend = Boolean(process.env.RESEND_API_KEY);
 
   if (hasGmail) {
-    await sendViaGmail(to, otp);
-    console.log(`[email] OTP sent to ${to} via Gmail`);
-    return;
+    try {
+      await sendViaGmail(to, otp);
+      console.log(`[email] OTP sent to ${to} via Gmail`);
+      return;
+    } catch (err) {
+      if (!isDev) throw err; // fatal in production
+      console.error(`[email] Gmail failed (dev mode — OTP still returned in response):`, (err as Error).message);
+    }
+  } else if (hasResend) {
+    try {
+      await sendViaResend(to, otp);
+      console.log(`[email] OTP sent to ${to} via Resend`);
+      return;
+    } catch (err) {
+      if (!isDev) throw err;
+      console.error(`[email] Resend failed (dev mode — OTP still returned in response):`, (err as Error).message);
+    }
   }
 
-  if (hasResend) {
-    await sendViaResend(to, otp);
-    console.log(`[email] OTP sent to ${to} via Resend`);
-    return;
-  }
-
-  // Dev fallback — no email provider configured
+  // Dev fallback — log OTP to console
   console.log(`\n[DEV EMAIL] ──────────────────────────────`);
   console.log(`  To:   ${to}`);
   console.log(`  OTP:  ${otp}`);

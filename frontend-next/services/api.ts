@@ -171,7 +171,7 @@ export const friendsApi = {
 export const invitesApi = {
   preview: (token: string) => api.get(`/invite/${token}`),
   join: (token: string) => api.post(`/invite/${token}/join`),
-  rotate: (groupId: string) => api.post(`/invite/groups/${groupId}/rotate`),
+  rotate: (groupId: string) => api.post(`/groups/${groupId}/invite/rotate`),
 };
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
