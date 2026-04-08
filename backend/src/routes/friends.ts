@@ -72,10 +72,11 @@ router.post('/', validate(addFriendSchema), asyncHandler(async (req, res) => {
     .input('myPhone',     sql.NVarChar(20), req.userPhone!)
     .input('friendPhone', sql.NVarChar(20), phone)
     .query(`
-      SELECT TOP 1 g.* FROM groups g
+      SELECT g.* FROM groups g
       JOIN group_members gm1 ON gm1.group_id = g.id AND gm1.phone = @myPhone
       JOIN group_members gm2 ON gm2.group_id = g.id AND gm2.phone = @friendPhone
       WHERE g.type = 'direct'
+      LIMIT 1
     `)).recordset[0] as GroupRow | undefined;
 
   if (existing) {
@@ -102,8 +103,8 @@ router.post('/', validate(addFriendSchema), asyncHandler(async (req, res) => {
       .input('name',                 sql.NVarChar(80), name)
       .input('createdBy',            sql.NVarChar(36), req.userId!)
       .input('inviteToken',          sql.NVarChar(40), inviteToken)
-      .input('inviteTokenCreatedAt', sql.BigInt,       BigInt(now))
-      .input('now',                  sql.BigInt,       BigInt(now))
+      .input('inviteTokenCreatedAt', sql.BigInt,       now)
+      .input('now',                  sql.BigInt,       now)
       .query(`
         INSERT INTO groups (id, name, type, created_by, invite_token, invite_token_created_at, created_at)
         VALUES (@id, @name, 'direct', @createdBy, @inviteToken, @inviteTokenCreatedAt, @now)
@@ -116,7 +117,7 @@ router.post('/', validate(addFriendSchema), asyncHandler(async (req, res) => {
       .input('userId',    sql.NVarChar(36), creator.id)
       .input('name',      sql.NVarChar(80), creator.name)
       .input('invitedBy', sql.NVarChar(36), creator.id)
-      .input('joinedAt',  sql.BigInt,       BigInt(now))
+      .input('joinedAt',  sql.BigInt,       now)
       .query(`
         INSERT INTO group_members (group_id, phone, user_id, name, status, role, invited_by, joined_at)
         VALUES (@groupId, @phone, @userId, @name, 'active', 'admin', @invitedBy, @joinedAt)
@@ -126,20 +127,16 @@ router.post('/', validate(addFriendSchema), asyncHandler(async (req, res) => {
     const friendName   = name || friendUser?.name || phone;
     const friendStatus = friendUser ? 'active' : 'pending';
     const friendUserId = friendUser?.id ?? null;
-    const friendJoined = friendUser ? BigInt(now) : null;
+    const friendJoined = friendUser ? now : null;
 
     const fReq = new sql.Request(t)
       .input('groupId',   sql.NVarChar(36), id)
       .input('phone',     sql.NVarChar(20), phone)
       .input('name',      sql.NVarChar(80), friendName)
       .input('status',    sql.NVarChar(10), friendStatus)
-      .input('invitedBy', sql.NVarChar(36), creator.id);
-
-    if (friendUserId !== null) fReq.input('userId', sql.NVarChar(36), friendUserId);
-    else fReq.input('userId', sql.NVarChar(36), null as unknown as string);
-
-    if (friendJoined !== null) fReq.input('joinedAt', sql.BigInt, friendJoined);
-    else fReq.input('joinedAt', sql.BigInt, null as unknown as bigint);
+      .input('invitedBy', sql.NVarChar(36), creator.id)
+      .input('userId',    sql.NVarChar(36), friendUserId)
+      .input('joinedAt',  sql.BigInt,       friendJoined);
 
     await fReq.query(`
       INSERT INTO group_members (group_id, phone, user_id, name, status, role, invited_by, joined_at)

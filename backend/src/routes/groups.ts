@@ -86,8 +86,8 @@ router.post('/', validate(createGroupSchema), asyncHandler(async (req, res) => {
       .input('name',                 sql.NVarChar(80),  name)
       .input('createdBy',            sql.NVarChar(36),  req.userId!)
       .input('inviteToken',          sql.NVarChar(40),  inviteToken)
-      .input('inviteTokenCreatedAt', sql.BigInt,        BigInt(now))
-      .input('now',                  sql.BigInt,        BigInt(now))
+      .input('inviteTokenCreatedAt', sql.BigInt,        now)
+      .input('now',                  sql.BigInt,        now)
       .query(`
         INSERT INTO groups (id, name, created_by, invite_token, invite_token_created_at, created_at)
         VALUES (@id, @name, @createdBy, @inviteToken, @inviteTokenCreatedAt, @now)
@@ -100,7 +100,7 @@ router.post('/', validate(createGroupSchema), asyncHandler(async (req, res) => {
       .input('userId',    sql.NVarChar(36),  creator.id)
       .input('name',      sql.NVarChar(80),  creator.name)
       .input('invitedBy', sql.NVarChar(36),  creator.id)
-      .input('joinedAt',  sql.BigInt,        BigInt(now))
+      .input('joinedAt',  sql.BigInt,        now)
       .query(`
         INSERT INTO group_members (group_id, phone, user_id, name, status, role, invited_by, joined_at)
         VALUES (@groupId, @phone, @userId, @name, 'active', 'admin', @invitedBy, @joinedAt)
@@ -118,7 +118,7 @@ router.post('/', validate(createGroupSchema), asyncHandler(async (req, res) => {
       const memberName = m.name || existingUser?.name || m.phone;
       const memberStatus = existingUser ? 'active' : 'pending';
       const memberUserId = existingUser?.id ?? null;
-      const memberJoinedAt = existingUser ? BigInt(now) : null;
+      const memberJoinedAt = existingUser ? now : null;
 
       const checkResult = await new sql.Request(t)
         .input('groupId', sql.NVarChar(36), id)
@@ -132,13 +132,9 @@ router.post('/', validate(createGroupSchema), asyncHandler(async (req, res) => {
         .input('phone',     sql.NVarChar(20),  m.phone)
         .input('name',      sql.NVarChar(80),  memberName)
         .input('status',    sql.NVarChar(10),  memberStatus)
-        .input('invitedBy', sql.NVarChar(36),  creator.id);
-
-      if (memberUserId !== null) mReq.input('userId', sql.NVarChar(36), memberUserId);
-      else mReq.input('userId', sql.NVarChar(36), null as unknown as string);
-
-      if (memberJoinedAt !== null) mReq.input('joinedAt', sql.BigInt, memberJoinedAt);
-      else mReq.input('joinedAt', sql.BigInt, null as unknown as bigint);
+        .input('invitedBy', sql.NVarChar(36),  creator.id)
+        .input('userId',    sql.NVarChar(36),  memberUserId)
+        .input('joinedAt',  sql.BigInt,        memberJoinedAt);
 
       await mReq.query(`
         INSERT INTO group_members (group_id, phone, user_id, name, status, role, invited_by, joined_at)
@@ -278,19 +274,15 @@ router.post('/:id/members', validate(memberSchema), asyncHandler(async (req, res
       const newStatus = existingUser ? 'active' : 'pending';
       const newUserId = existingUser?.id ?? existing.user_id;
       const newName   = name || existingUser?.name || phone;
-      const newJoined = existingUser ? BigInt(now) : null;
+      const newJoined = existingUser ? now : null;
 
       const uReq = (await getRequest())
-        .input('status',  sql.NVarChar(10), newStatus)
-        .input('name',    sql.NVarChar(80), newName)
-        .input('groupId', sql.NVarChar(36), req.params.id)
-        .input('phone',   sql.NVarChar(20), phone);
-
-      if (newUserId !== null) uReq.input('userId', sql.NVarChar(36), newUserId);
-      else uReq.input('userId', sql.NVarChar(36), null as unknown as string);
-
-      if (newJoined !== null) uReq.input('joinedAt', sql.BigInt, newJoined);
-      else uReq.input('joinedAt', sql.BigInt, null as unknown as bigint);
+        .input('status',   sql.NVarChar(10), newStatus)
+        .input('name',     sql.NVarChar(80), newName)
+        .input('groupId',  sql.NVarChar(36), req.params.id)
+        .input('phone',    sql.NVarChar(20), phone)
+        .input('userId',   sql.NVarChar(36), newUserId)
+        .input('joinedAt', sql.BigInt,       newJoined);
 
       await uReq.query(`
         UPDATE group_members
@@ -305,20 +297,16 @@ router.post('/:id/members', validate(memberSchema), asyncHandler(async (req, res
     const memberName   = name || existingUser?.name || phone;
     const memberStatus = existingUser ? 'active' : 'pending';
     const memberUserId = existingUser?.id ?? null;
-    const memberJoined = existingUser ? BigInt(now) : null;
+    const memberJoined = existingUser ? now : null;
 
     const iReq = (await getRequest())
       .input('groupId',   sql.NVarChar(36), req.params.id)
       .input('phone',     sql.NVarChar(20), phone)
       .input('name',      sql.NVarChar(80), memberName)
       .input('status',    sql.NVarChar(10), memberStatus)
-      .input('invitedBy', sql.NVarChar(36), req.userId!);
-
-    if (memberUserId !== null) iReq.input('userId', sql.NVarChar(36), memberUserId);
-    else iReq.input('userId', sql.NVarChar(36), null as unknown as string);
-
-    if (memberJoined !== null) iReq.input('joinedAt', sql.BigInt, memberJoined);
-    else iReq.input('joinedAt', sql.BigInt, null as unknown as bigint);
+      .input('invitedBy', sql.NVarChar(36), req.userId!)
+      .input('userId',    sql.NVarChar(36), memberUserId)
+      .input('joinedAt',  sql.BigInt,       memberJoined);
 
     await iReq.query(`
       INSERT INTO group_members (group_id, phone, user_id, name, status, role, invited_by, joined_at)

@@ -117,13 +117,13 @@ router.post('/', validate(expenseSchema), asyncHandler(async (req: Request<Group
       .input('id',          sql.NVarChar(36),  id)
       .input('groupId',     sql.NVarChar(36),  req.params.id)
       .input('description', sql.NVarChar(200), body.description)
-      .input('amountPaise', sql.BigInt,        BigInt(amountPaise))
+      .input('amountPaise', sql.BigInt,        amountPaise)
       .input('paidByPhone', sql.NVarChar(20),  body.paidByPhone)
       .input('category',    sql.NVarChar(30),  body.category)
       .input('splitType',   sql.NVarChar(20),  body.splitType)
-      .input('notes',       sql.NVarChar(500), body.notes ?? null as unknown as string)
+      .input('notes',       sql.NVarChar(500), body.notes ?? null)
       .input('createdBy',   sql.NVarChar(36),  req.userId!)
-      .input('now',         sql.BigInt,        BigInt(now))
+      .input('now',         sql.BigInt,        now)
       .query(`
         INSERT INTO expenses
           (id, group_id, description, amount_paise, paid_by_phone, category, split_type, notes, created_by, created_at, updated_at, deleted_at)
@@ -134,7 +134,7 @@ router.post('/', validate(expenseSchema), asyncHandler(async (req: Request<Group
       await new sql.Request(t)
         .input('expenseId',   sql.NVarChar(36), id)
         .input('phone',       sql.NVarChar(20), phone)
-        .input('amountPaise', sql.BigInt,       BigInt(amount))
+        .input('amountPaise', sql.BigInt,       amount)
         .query('INSERT INTO expense_shares (expense_id, phone, amount_paise) VALUES (@expenseId, @phone, @amountPaise)');
     }
   });
@@ -187,12 +187,12 @@ router.put('/:eid', validate(editSchema), asyncHandler(async (req: Request<Expen
   await withTransaction(async (t) => {
     await new sql.Request(t)
       .input('description', sql.NVarChar(200), body.description ?? existing.description)
-      .input('amountPaise', sql.BigInt,        BigInt(amountPaise))
+      .input('amountPaise', sql.BigInt,        amountPaise)
       .input('paidByPhone', sql.NVarChar(20),  body.paidByPhone ?? existing.paid_by_phone)
       .input('category',    sql.NVarChar(30),  body.category ?? existing.category)
       .input('splitType',   sql.NVarChar(20),  splitType)
-      .input('notes',       sql.NVarChar(500), body.notes !== undefined ? (body.notes ?? null as unknown as string) : (existing.notes ?? null as unknown as string))
-      .input('updatedAt',   sql.BigInt,        BigInt(now))
+      .input('notes',       sql.NVarChar(500), body.notes !== undefined ? (body.notes ?? null) : (existing.notes ?? null))
+      .input('updatedAt',   sql.BigInt,        now)
       .input('id',          sql.NVarChar(36),  existing.id)
       .query(`
         UPDATE expenses SET
@@ -209,7 +209,7 @@ router.put('/:eid', validate(editSchema), asyncHandler(async (req: Request<Expen
       await new sql.Request(t)
         .input('expenseId',   sql.NVarChar(36), existing.id)
         .input('phone',       sql.NVarChar(20), phone)
-        .input('amountPaise', sql.BigInt,       BigInt(amount))
+        .input('amountPaise', sql.BigInt,       amount)
         .query('INSERT INTO expense_shares (expense_id, phone, amount_paise) VALUES (@expenseId, @phone, @amountPaise)');
     }
   });
@@ -245,8 +245,8 @@ router.delete('/:eid', asyncHandler(async (req: Request<ExpenseParams>, res) => 
 
   const now = Date.now();
   await (await getRequest())
-    .input('deletedAt', sql.BigInt,       BigInt(now))
-    .input('updatedAt', sql.BigInt,       BigInt(now))
+    .input('deletedAt', sql.BigInt,       now)
+    .input('updatedAt', sql.BigInt,       now)
     .input('id',        sql.NVarChar(36), existing.id)
     .query('UPDATE expenses SET deleted_at = @deletedAt, updated_at = @updatedAt WHERE id = @id');
 

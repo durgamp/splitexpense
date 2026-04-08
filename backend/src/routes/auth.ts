@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { getPool, getRequest, withTransaction, toNum, sql } from '../database/index.js';
+import { getRequest, withTransaction, toNum, sql } from '../database/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { otpRequestLimiter, otpVerifyLimiter, refreshLimiter, nameLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
@@ -56,8 +56,8 @@ router.post('/request-otp', otpRequestLimiter, validate(emailSchema), asyncHandl
     .input('id',        sql.NVarChar(36),  newId())
     .input('email',     sql.NVarChar(255), email)
     .input('codeHash',  sql.NVarChar(100), codeHash)
-    .input('expiresAt', sql.BigInt,        BigInt(now + OTP_TTL_MS))
-    .input('now',       sql.BigInt,        BigInt(now))
+    .input('expiresAt', sql.BigInt,        now + OTP_TTL_MS)
+    .input('now',       sql.BigInt,        now)
     .query(`INSERT INTO otp_requests (id, email, code_hash, expires_at, attempts, created_at)
             VALUES (@id, @email, @codeHash, @expiresAt, 0, @now)`);
 
@@ -76,10 +76,10 @@ router.post('/verify-otp', otpVerifyLimiter, validate(verifySchema), asyncHandle
 
   const otpResult = await (await getRequest())
     .input('email', sql.NVarChar(255), email)
-    .input('now',   sql.BigInt,        BigInt(now))
-    .query(`SELECT TOP 1 * FROM otp_requests
+    .input('now',   sql.BigInt,        now)
+    .query(`SELECT * FROM otp_requests
             WHERE email = @email AND expires_at > @now
-            ORDER BY created_at DESC`);
+            ORDER BY created_at DESC LIMIT 1`);
 
   const otpRow = otpResult.recordset[0] as OtpRow | undefined;
   if (!otpRow) {
@@ -118,7 +118,7 @@ router.post('/verify-otp', otpVerifyLimiter, validate(verifySchema), asyncHandle
     await (await getRequest())
       .input('id',    sql.NVarChar(36),  uid)
       .input('email', sql.NVarChar(255), email)
-      .input('now',   sql.BigInt,        BigInt(now))
+      .input('now',   sql.BigInt,        now)
       .query(`INSERT INTO users (id, email, phone, name, created_at, last_active_at)
               VALUES (@id, @email, NULL, '', @now, @now)`);
     userResult = await (await getRequest()).input('id', sql.NVarChar(36), uid)
@@ -126,7 +126,7 @@ router.post('/verify-otp', otpVerifyLimiter, validate(verifySchema), asyncHandle
     user = userResult.recordset[0] as UserRow;
   } else {
     await (await getRequest())
-      .input('now', sql.BigInt, BigInt(now))
+      .input('now', sql.BigInt, now)
       .input('id',  sql.NVarChar(36), user.id)
       .query('UPDATE users SET last_active_at = @now WHERE id = @id');
   }
@@ -135,7 +135,7 @@ router.post('/verify-otp', otpVerifyLimiter, validate(verifySchema), asyncHandle
   if (user.phone) {
     await (await getRequest())
       .input('userId', sql.NVarChar(36), user.id)
-      .input('now',    sql.BigInt,       BigInt(now))
+      .input('now',    sql.BigInt,       now)
       .input('phone',  sql.NVarChar(20), user.phone)
       .query(`UPDATE group_members SET user_id = @userId, status = 'active', joined_at = @now
               WHERE phone = @phone AND status = 'pending'`);
@@ -149,8 +149,8 @@ router.post('/verify-otp', otpVerifyLimiter, validate(verifySchema), asyncHandle
     .input('id',        sql.NVarChar(36), newId())
     .input('userId',    sql.NVarChar(36), user.id)
     .input('tokenHash', sql.NVarChar(64), tokenHash)
-    .input('expiresAt', sql.BigInt,       BigInt(now + REFRESH_TTL_MS))
-    .input('now',       sql.BigInt,       BigInt(now))
+    .input('expiresAt', sql.BigInt,       now + REFRESH_TTL_MS)
+    .input('now',       sql.BigInt,       now)
     .query(`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at)
             VALUES (@id, @userId, @tokenHash, @expiresAt, @now)`);
 
@@ -178,13 +178,13 @@ router.patch('/setup', requireAuth, nameLimiter, validate(setupSchema), asyncHan
 
   await (await getRequest())
     .input('phone',  sql.NVarChar(20), phone)
-    .input('now',    sql.BigInt,       BigInt(now))
+    .input('now',    sql.BigInt,       now)
     .input('userId', sql.NVarChar(36), req.userId!)
     .query('UPDATE users SET phone = @phone, last_active_at = @now WHERE id = @userId');
 
   await (await getRequest())
     .input('userId', sql.NVarChar(36), req.userId!)
-    .input('now',    sql.BigInt,       BigInt(now))
+    .input('now',    sql.BigInt,       now)
     .input('phone',  sql.NVarChar(20), phone)
     .query(`UPDATE group_members SET user_id = @userId, status = 'active', joined_at = @now
             WHERE phone = @phone AND status = 'pending'`);
@@ -200,8 +200,8 @@ router.patch('/setup', requireAuth, nameLimiter, validate(setupSchema), asyncHan
     .input('id',        sql.NVarChar(36), newId())
     .input('userId',    sql.NVarChar(36), user.id)
     .input('tokenHash', sql.NVarChar(64), tokenHash)
-    .input('expiresAt', sql.BigInt,       BigInt(now + REFRESH_TTL_MS))
-    .input('now',       sql.BigInt,       BigInt(now))
+    .input('expiresAt', sql.BigInt,       now + REFRESH_TTL_MS)
+    .input('now',       sql.BigInt,       now)
     .query(`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at)
             VALUES (@id, @userId, @tokenHash, @expiresAt, @now)`);
 
@@ -216,7 +216,7 @@ router.patch('/name', requireAuth, nameLimiter, validate(nameSchema), asyncHandl
 
   await (await getRequest())
     .input('name',   sql.NVarChar(100), name)
-    .input('now',    sql.BigInt,        BigInt(now))
+    .input('now',    sql.BigInt,        now)
     .input('userId', sql.NVarChar(36),  req.userId!)
     .query('UPDATE users SET name = @name, last_active_at = @now WHERE id = @userId');
 
@@ -235,7 +235,7 @@ router.post('/refresh', refreshLimiter, validate(refreshSchema), asyncHandler(as
 
   const rtResult = await (await getRequest())
     .input('hash', sql.NVarChar(64), tokenHash)
-    .input('now',  sql.BigInt,       BigInt(now))
+    .input('now',  sql.BigInt,       now)
     .query('SELECT * FROM refresh_tokens WHERE token_hash = @hash AND expires_at > @now');
   const row = rtResult.recordset[0] as RefreshTokenRow | undefined;
 
@@ -257,12 +257,12 @@ router.post('/refresh', refreshLimiter, validate(refreshSchema), asyncHandler(as
       .input('id',        sql.NVarChar(36), newId())
       .input('userId',    sql.NVarChar(36), user.id)
       .input('tokenHash', sql.NVarChar(64), newTokenHash)
-      .input('expiresAt', sql.BigInt,       BigInt(now + REFRESH_TTL_MS))
-      .input('now',       sql.BigInt,       BigInt(now))
+      .input('expiresAt', sql.BigInt,       now + REFRESH_TTL_MS)
+      .input('now',       sql.BigInt,       now)
       .query(`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at)
               VALUES (@id, @userId, @tokenHash, @expiresAt, @now)`);
     await new sql.Request(t)
-      .input('now',    sql.BigInt,      BigInt(now))
+      .input('now',    sql.BigInt,       now)
       .input('userId', sql.NVarChar(36), user.id)
       .query('UPDATE users SET last_active_at = @now WHERE id = @userId');
   });

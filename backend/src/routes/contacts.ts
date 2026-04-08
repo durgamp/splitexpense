@@ -52,7 +52,7 @@ router.post('/register', validate(registerSchema), asyncHandler(async (req, res)
   await (await getRequest())
     .input('hash',   sql.NVarChar(64), hash)
     .input('userId', sql.NVarChar(36), req.userId!)
-    .input('now',    sql.BigInt,       BigInt(now))
+    .input('now',    sql.BigInt,       now)
     .query(`
       MERGE contact_hashes AS target
       USING (VALUES (@hash, @userId, @now)) AS source (hash, user_id, created_at)

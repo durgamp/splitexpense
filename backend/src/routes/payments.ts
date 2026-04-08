@@ -86,10 +86,10 @@ router.post('/', validate(paymentSchema), asyncHandler(async (req: Request<Group
     .input('groupId',     sql.NVarChar(36),  req.params.id)
     .input('fromPhone',   sql.NVarChar(20),  body.fromPhone)
     .input('toPhone',     sql.NVarChar(20),  body.toPhone)
-    .input('amountPaise', sql.BigInt,        BigInt(amountPaise))
-    .input('notes',       sql.NVarChar(200), body.notes ?? null as unknown as string)
+    .input('amountPaise', sql.BigInt,        amountPaise)
+    .input('notes',       sql.NVarChar(200), body.notes ?? null)
     .input('createdBy',   sql.NVarChar(36),  req.userId!)
-    .input('now',         sql.BigInt,        BigInt(now))
+    .input('now',         sql.BigInt,        now)
     .query(`
       INSERT INTO payments (id, group_id, from_phone, to_phone, amount_paise, notes, created_by, created_at)
       VALUES (@id, @groupId, @fromPhone, @toPhone, @amountPaise, @notes, @createdBy, @now)

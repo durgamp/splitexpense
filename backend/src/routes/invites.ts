@@ -105,7 +105,7 @@ router.post('/:token/join', requireAuth, asyncHandler(async (req, res) => {
     await (await getRequest())
       .input('userId',  sql.NVarChar(36), user.id)
       .input('name',    sql.NVarChar(80), displayName)
-      .input('joinedAt',sql.BigInt,       BigInt(now))
+      .input('joinedAt',sql.BigInt,       now)
       .input('groupId', sql.NVarChar(36), row.id)
       .input('phone',   sql.NVarChar(20), user.phone ?? '')
       .query("UPDATE group_members SET status = 'active', user_id = @userId, name = @name, joined_at = @joinedAt WHERE group_id = @groupId AND phone = @phone");
@@ -115,7 +115,7 @@ router.post('/:token/join', requireAuth, asyncHandler(async (req, res) => {
       .input('phone',    sql.NVarChar(20), user.phone ?? '')
       .input('userId',   sql.NVarChar(36), user.id)
       .input('name',     sql.NVarChar(80), displayName)
-      .input('joinedAt', sql.BigInt,       BigInt(now))
+      .input('joinedAt', sql.BigInt,       now)
       .query(`
         INSERT INTO group_members (group_id, phone, user_id, name, status, role, invited_by, joined_at)
         VALUES (@groupId, @phone, @userId, @name, 'active', 'member', 'invite', @joinedAt)
@@ -156,7 +156,7 @@ router.post('/groups/:id/rotate', requireAuth, asyncHandler(async (req, res) => 
 
   await (await getRequest())
     .input('token',   sql.NVarChar(40), newToken)
-    .input('now',     sql.BigInt,       BigInt(now))
+    .input('now',     sql.BigInt,       now)
     .input('groupId', sql.NVarChar(36), req.params.id)
     .query('UPDATE groups SET invite_token = @token, invite_token_created_at = @now WHERE id = @groupId');
 

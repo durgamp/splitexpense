@@ -13,11 +13,10 @@ backend-python/.env
 frontend-next/.env.local
 frontend-next/.env*.local
 
-# SQLite database files
+# SQLite database files (runtime data — not committed)
 *.db
 *.db-wal
 *.db-shm
-backend/database/
 
 # OS / editor
 .DS_Store
