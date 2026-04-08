@@ -37,12 +37,7 @@ const editSchema = expenseSchema.partial();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function buildExpense(row: ExpenseRow) {
-  const shares = (await (await getRequest())
-    .input('expenseId', sql.NVarChar(36), row.id)
-    .query('SELECT * FROM expense_shares WHERE expense_id = @expenseId'))
-    .recordset as ExpenseShareRow[];
-
+function serializeExpense(row: ExpenseRow, shares: ExpenseShareRow[]) {
   return {
     id: row.id,
     groupId: row.group_id,
@@ -58,6 +53,33 @@ async function buildExpense(row: ExpenseRow) {
     deletedAt: row.deleted_at != null ? toNum(row.deleted_at) : null,
     shares: shares.map((s) => ({ phone: s.phone, amountPaise: toNum(s.amount_paise) })),
   };
+}
+
+/** Single expense (used after mutations). */
+async function buildExpense(row: ExpenseRow) {
+  const shares = (await (await getRequest())
+    .input('expenseId', sql.NVarChar(36), row.id)
+    .query('SELECT * FROM expense_shares WHERE expense_id = @expenseId'))
+    .recordset as ExpenseShareRow[];
+  return serializeExpense(row, shares);
+}
+
+/** Batch build — fetches all shares in one query (no N+1). */
+async function buildExpenses(rows: ExpenseRow[]) {
+  if (rows.length === 0) return [];
+  const req = await getRequest();
+  rows.forEach((r, i) => req.input(`eid${i}`, sql.NVarChar(36), r.id));
+  const inList = rows.map((_, i) => `@eid${i}`).join(',');
+  const allShares = (await req.query(
+    `SELECT * FROM expense_shares WHERE expense_id IN (${inList})`
+  )).recordset as ExpenseShareRow[];
+
+  const byExpense: Record<string, ExpenseShareRow[]> = {};
+  for (const s of allShares) {
+    if (!byExpense[s.expense_id]) byExpense[s.expense_id] = [];
+    byExpense[s.expense_id].push(s);
+  }
+  return rows.map((row) => serializeExpense(row, byExpense[row.id] ?? []));
 }
 
 async function assertMember(groupId: string, phone: string): Promise<boolean> {
@@ -80,7 +102,7 @@ router.get('/', asyncHandler(async (req: Request<GroupParams>, res) => {
     .query('SELECT * FROM expenses WHERE group_id = @groupId AND deleted_at IS NULL ORDER BY created_at DESC'))
     .recordset as ExpenseRow[];
 
-  const expenses = await Promise.all(rows.map(buildExpense));
+  const expenses = await buildExpenses(rows);
   res.json({ expenses });
 }));
 

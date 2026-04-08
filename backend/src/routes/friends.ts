@@ -20,12 +20,7 @@ const addFriendSchema = z.object({
   name: z.string().min(1).max(80).trim(),
 });
 
-async function buildGroup(row: GroupRow) {
-  const members = (await (await getRequest())
-    .input('groupId', sql.NVarChar(36), row.id)
-    .query("SELECT * FROM group_members WHERE group_id = @groupId AND status != 'removed'"))
-    .recordset as GroupMemberRow[];
-
+function serializeFriendGroup(row: GroupRow, members: GroupMemberRow[]) {
   return {
     id: row.id,
     name: row.name,
@@ -42,6 +37,33 @@ async function buildGroup(row: GroupRow) {
   };
 }
 
+/** Single friend group (used after mutations). */
+async function buildGroup(row: GroupRow) {
+  const members = (await (await getRequest())
+    .input('groupId', sql.NVarChar(36), row.id)
+    .query("SELECT * FROM group_members WHERE group_id = @groupId AND status != 'removed'"))
+    .recordset as GroupMemberRow[];
+  return serializeFriendGroup(row, members);
+}
+
+/** Batch build — fetches all members in one query (no N+1). */
+async function buildFriendGroups(rows: GroupRow[]) {
+  if (rows.length === 0) return [];
+  const req = await getRequest();
+  rows.forEach((r, i) => req.input(`gid${i}`, sql.NVarChar(36), r.id));
+  const inList = rows.map((_, i) => `@gid${i}`).join(',');
+  const allMembers = (await req.query(
+    `SELECT * FROM group_members WHERE group_id IN (${inList}) AND status != 'removed'`
+  )).recordset as GroupMemberRow[];
+
+  const byGroup: Record<string, GroupMemberRow[]> = {};
+  for (const m of allMembers) {
+    if (!byGroup[m.group_id]) byGroup[m.group_id] = [];
+    byGroup[m.group_id].push(m);
+  }
+  return rows.map((row) => serializeFriendGroup(row, byGroup[row.id] ?? []));
+}
+
 // ── GET /friends ──────────────────────────────────────────────────────────────
 router.get('/', asyncHandler(async (req, res) => {
   const rows = (await (await getRequest())
@@ -53,7 +75,7 @@ router.get('/', asyncHandler(async (req, res) => {
       ORDER BY g.created_at DESC
     `)).recordset as GroupRow[];
 
-  const friends = await Promise.all(rows.map(buildGroup));
+  const friends = await buildFriendGroups(rows);
   res.json({ friends });
 }));
 

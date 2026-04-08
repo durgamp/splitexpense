@@ -22,6 +22,10 @@ function getDb(): BetterSqlite3.Database {
   _db = new BetterSqlite3(DB_PATH);
   _db.pragma('journal_mode = WAL');
   _db.pragma('foreign_keys = ON');
+  _db.pragma('synchronous = NORMAL');   // safe with WAL, much faster than FULL
+  _db.pragma('cache_size = -32000');    // 32 MB page cache
+  _db.pragma('temp_store = MEMORY');    // temp tables in RAM
+  _db.pragma('mmap_size = 134217728'); // 128 MB memory-mapped I/O
   console.log('[DB] SQLite opened:', DB_PATH);
   return _db;
 }

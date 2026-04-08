@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { getRequest, toNum, sql } from '../database/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { randomHex } from '../utils/id.js';
 import type { GroupRow, GroupMemberRow, UserRow } from '../types/index.js';
 
 const router = Router();
@@ -99,7 +98,12 @@ router.post('/:token/join', requireAuth, asyncHandler(async (req, res) => {
     .query('SELECT * FROM users WHERE id = @id'))
     .recordset[0] as UserRow;
 
-  const displayName = user.name || user.phone || '';
+  if (!user.phone) {
+    res.status(400).json({ error: 'Please complete your profile setup (add phone number) before joining a group.' });
+    return;
+  }
+
+  const displayName = user.name || user.phone;
 
   if (existing) {
     await (await getRequest())
@@ -107,12 +111,12 @@ router.post('/:token/join', requireAuth, asyncHandler(async (req, res) => {
       .input('name',    sql.NVarChar(80), displayName)
       .input('joinedAt',sql.BigInt,       now)
       .input('groupId', sql.NVarChar(36), row.id)
-      .input('phone',   sql.NVarChar(20), user.phone ?? '')
+      .input('phone',   sql.NVarChar(20), user.phone)
       .query("UPDATE group_members SET status = 'active', user_id = @userId, name = @name, joined_at = @joinedAt WHERE group_id = @groupId AND phone = @phone");
   } else {
     await (await getRequest())
       .input('groupId',  sql.NVarChar(36), row.id)
-      .input('phone',    sql.NVarChar(20), user.phone ?? '')
+      .input('phone',    sql.NVarChar(20), user.phone)
       .input('userId',   sql.NVarChar(36), user.id)
       .input('name',     sql.NVarChar(80), displayName)
       .input('joinedAt', sql.BigInt,       now)
@@ -136,31 +140,6 @@ router.post('/:token/join', requireAuth, asyncHandler(async (req, res) => {
     },
     alreadyMember: false,
   });
-}));
-
-// ── POST /groups/:id/invite/rotate ────────────────────────────────────────────
-router.post('/groups/:id/rotate', requireAuth, asyncHandler(async (req, res) => {
-  const isAdmin = (await (await getRequest())
-    .input('groupId', sql.NVarChar(36), req.params.id)
-    .input('phone',   sql.NVarChar(20), req.userPhone!)
-    .query("SELECT 1 FROM group_members WHERE group_id = @groupId AND phone = @phone AND role = 'admin'"))
-    .recordset[0];
-
-  if (!isAdmin) {
-    res.status(403).json({ error: 'Only admins can rotate the invite link' });
-    return;
-  }
-
-  const newToken = randomHex(16);
-  const now = Date.now();
-
-  await (await getRequest())
-    .input('token',   sql.NVarChar(40), newToken)
-    .input('now',     sql.BigInt,       now)
-    .input('groupId', sql.NVarChar(36), req.params.id)
-    .query('UPDATE groups SET invite_token = @token, invite_token_created_at = @now WHERE id = @groupId');
-
-  res.json({ inviteToken: newToken });
 }));
 
 export default router;

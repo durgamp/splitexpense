@@ -4,10 +4,13 @@ import crypto from 'crypto';
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-in-production';
 const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES_IN ?? '15m';
 
-if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'dev-secret-change-in-production') {
-  // Warn but don't exit — process.exit kills serverless functions.
-  // Set JWT_SECRET in your Vercel / Railway environment variables.
-  console.error('[WARN] JWT_SECRET is using the default insecure value. Set a strong JWT_SECRET env variable.');
+if (JWT_SECRET === 'dev-secret-change-in-production') {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[FATAL] JWT_SECRET is using the default insecure value. Set a strong JWT_SECRET env variable.');
+    process.exit(1);
+  } else {
+    console.warn('[WARN] JWT_SECRET is using the default dev value. Set JWT_SECRET before deploying.');
+  }
 }
 
 export interface AccessTokenPayload {

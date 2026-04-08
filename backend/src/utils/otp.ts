@@ -3,11 +3,8 @@ import bcrypt from 'bcryptjs';
 
 const BCRYPT_ROUNDS = 10;
 
-/** Generate a 6-digit OTP. Returns '123456' in dev mode for easy testing. */
+/** Generate a cryptographically secure 6-digit OTP. */
 export function generateOtp(): string {
-  if (process.env.OTP_DEV_EXPOSE === 'true') {
-    return '123456';
-  }
   // Use rejection sampling to avoid modulo bias
   let value: number;
   do {

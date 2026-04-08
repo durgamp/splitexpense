@@ -12,12 +12,19 @@ router.use(requireAuth);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function buildGroup(row: GroupRow) {
-  const members = (await (await getRequest())
-    .input('groupId', sql.NVarChar(36), row.id)
-    .query("SELECT * FROM group_members WHERE group_id = @groupId AND status != 'removed'"))
-    .recordset as GroupMemberRow[];
+function serializeMember(m: GroupMemberRow) {
+  return {
+    phone: m.phone,
+    userId: m.user_id,
+    name: m.name,
+    status: m.status,
+    role: m.role,
+    invitedBy: m.invited_by,
+    joinedAt: m.joined_at != null ? toNum(m.joined_at) : null,
+  };
+}
 
+function serializeGroup(row: GroupRow, members: GroupMemberRow[]) {
   return {
     id: row.id,
     name: row.name,
@@ -26,16 +33,35 @@ async function buildGroup(row: GroupRow) {
     createdAt: toNum(row.created_at),
     inviteToken: row.invite_token,
     inviteTokenCreatedAt: toNum(row.invite_token_created_at),
-    members: members.map((m) => ({
-      phone: m.phone,
-      userId: m.user_id,
-      name: m.name,
-      status: m.status,
-      role: m.role,
-      invitedBy: m.invited_by,
-      joinedAt: m.joined_at != null ? toNum(m.joined_at) : null,
-    })),
+    members: members.map(serializeMember),
   };
+}
+
+/** Single group — still one extra query, used after mutations. */
+async function buildGroup(row: GroupRow) {
+  const members = (await (await getRequest())
+    .input('groupId', sql.NVarChar(36), row.id)
+    .query("SELECT * FROM group_members WHERE group_id = @groupId AND status != 'removed'"))
+    .recordset as GroupMemberRow[];
+  return serializeGroup(row, members);
+}
+
+/** Batch build — fetches all members in a single query (no N+1). */
+async function buildGroups(rows: GroupRow[]) {
+  if (rows.length === 0) return [];
+  const req = await getRequest();
+  rows.forEach((r, i) => req.input(`gid${i}`, sql.NVarChar(36), r.id));
+  const inList = rows.map((_, i) => `@gid${i}`).join(',');
+  const allMembers = (await req.query(
+    `SELECT * FROM group_members WHERE group_id IN (${inList}) AND status != 'removed'`
+  )).recordset as GroupMemberRow[];
+
+  const byGroup: Record<string, GroupMemberRow[]> = {};
+  for (const m of allMembers) {
+    if (!byGroup[m.group_id]) byGroup[m.group_id] = [];
+    byGroup[m.group_id].push(m);
+  }
+  return rows.map((row) => serializeGroup(row, byGroup[row.id] ?? []));
 }
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
@@ -64,7 +90,7 @@ router.get('/', asyncHandler(async (req, res) => {
       ORDER BY g.created_at DESC
     `)).recordset as GroupRow[];
 
-  const groups = await Promise.all(groupRows.map(buildGroup));
+  const groups = await buildGroups(groupRows);
   res.json({ groups });
 }));
 
@@ -79,6 +105,11 @@ router.post('/', validate(createGroupSchema), asyncHandler(async (req, res) => {
     .input('id', sql.NVarChar(36), req.userId!)
     .query('SELECT * FROM users WHERE id = @id');
   const creator = creatorResult.recordset[0] as UserRow;
+
+  if (!creator.phone) {
+    res.status(400).json({ error: 'Please complete your profile setup (add phone number) before creating a group.' });
+    return;
+  }
 
   await withTransaction(async (t) => {
     await new sql.Request(t)
@@ -217,14 +248,10 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   }
 
   await withTransaction(async (t) => {
-    // Delete expense shares first (FK child of expenses)
+    // Delete expense shares first (FK child of expenses) — use subquery (SQLite has no DELETE...JOIN)
     await new sql.Request(t)
       .input('groupId', sql.NVarChar(36), req.params.id)
-      .query(`
-        DELETE es FROM expense_shares es
-        JOIN expenses e ON e.id = es.expense_id
-        WHERE e.group_id = @groupId
-      `);
+      .query(`DELETE FROM expense_shares WHERE expense_id IN (SELECT id FROM expenses WHERE group_id = @groupId)`);
     await new sql.Request(t)
       .input('groupId', sql.NVarChar(36), req.params.id)
       .query('DELETE FROM expenses WHERE group_id = @groupId');
@@ -331,6 +358,31 @@ router.post('/:id/members', validate(memberSchema), asyncHandler(async (req, res
       joinedAt: member.joined_at != null ? toNum(member.joined_at) : null,
     },
   });
+}));
+
+// ── POST /groups/:id/invite/rotate ────────────────────────────────────────────
+router.post('/:id/invite/rotate', asyncHandler(async (req, res) => {
+  const isAdmin = (await (await getRequest())
+    .input('groupId', sql.NVarChar(36), req.params.id)
+    .input('phone',   sql.NVarChar(20), req.userPhone!)
+    .query("SELECT 1 FROM group_members WHERE group_id = @groupId AND phone = @phone AND role = 'admin'"))
+    .recordset[0];
+
+  if (!isAdmin) {
+    res.status(403).json({ error: 'Only admins can rotate the invite link' });
+    return;
+  }
+
+  const newToken = randomHex(16);
+  const now = Date.now();
+
+  await (await getRequest())
+    .input('token',   sql.NVarChar(40), newToken)
+    .input('now',     sql.BigInt,       now)
+    .input('groupId', sql.NVarChar(36), req.params.id)
+    .query('UPDATE groups SET invite_token = @token, invite_token_created_at = @now WHERE id = @groupId');
+
+  res.json({ inviteToken: newToken });
 }));
 
 export default router;

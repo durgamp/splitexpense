@@ -48,20 +48,11 @@ router.post('/register', validate(registerSchema), asyncHandler(async (req, res)
   const { hash } = req.body as z.infer<typeof registerSchema>;
   const now = Date.now();
 
-  // MERGE = upsert in T-SQL (equivalent to INSERT OR REPLACE)
   await (await getRequest())
     .input('hash',   sql.NVarChar(64), hash)
     .input('userId', sql.NVarChar(36), req.userId!)
     .input('now',    sql.BigInt,       now)
-    .query(`
-      MERGE contact_hashes AS target
-      USING (VALUES (@hash, @userId, @now)) AS source (hash, user_id, created_at)
-      ON target.hash = source.hash
-      WHEN MATCHED THEN
-        UPDATE SET user_id = source.user_id, created_at = source.created_at
-      WHEN NOT MATCHED THEN
-        INSERT (hash, user_id, created_at) VALUES (source.hash, source.user_id, source.created_at);
-    `);
+    .query(`INSERT OR REPLACE INTO contact_hashes (hash, user_id, created_at) VALUES (@hash, @userId, @now)`);
 
   res.json({ success: true });
 }));
