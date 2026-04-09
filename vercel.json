@@ -1,6 +1,5 @@
 {
-  "buildCommand": "pnpm --filter splitease-next build",
   "installCommand": "pnpm install",
-  "outputDirectory": "frontend-next/.next",
-  "framework": "nextjs"
+  "buildCommand": "pnpm --filter splitease-next build",
+  "outputDirectory": "frontend-next/.next"
 }
