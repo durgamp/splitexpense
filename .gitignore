@@ -1,43 +1,35 @@
-# Dependencies
+# ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
 
-# Build output
+# ── Build output ──────────────────────────────────────────────────────────────
 dist/
 backend/dist/
-frontend/dist/
+frontend-next/.next/
+frontend-next/out/
+frontend-next/next-env.d.ts
 
-# Environment secrets — never commit
+# ── Environment secrets — NEVER commit ────────────────────────────────────────
 .env
+.env.local
+.env.*.local
 backend/.env
-backend-python/.env
 frontend-next/.env.local
-frontend-next/.env*.local
 
-# SQLite database files (runtime data — not committed)
+# ── SQLite database files (runtime data — not committed) ──────────────────────
 *.db
 *.db-wal
 *.db-shm
 
-# OS / editor
+# ── OS / editor ───────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-# npm lock files (project uses pnpm)
-package-lock.json
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-backend-python/venv/
-backend-python/.venv/
-backend-python/*.egg-info/
-
-# Logs
+# ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# ── Vercel ────────────────────────────────────────────────────────────────────
+.vercel

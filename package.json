@@ -7,10 +7,10 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "dev": "concurrently -n backend,frontend -c green,cyan \"pnpm --filter splitease-backend dev\" \"pnpm --filter splitease-frontend dev\"",
+    "dev": "concurrently -n backend,frontend -c green,cyan \"pnpm --filter splitease-backend dev\" \"pnpm --filter splitease-next dev\"",
     "dev:backend": "pnpm --filter splitease-backend dev",
-    "dev:frontend": "pnpm --filter splitease-frontend dev",
-    "build": "pnpm --filter splitease-backend build && pnpm --filter splitease-frontend build",
+    "dev:frontend": "pnpm --filter splitease-next dev",
+    "build": "pnpm --filter splitease-backend build && pnpm --filter splitease-next build",
     "install:all": "pnpm install"
   },
   "devDependencies": {

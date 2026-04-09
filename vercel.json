@@ -1,15 +1,9 @@
 {
-  "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter splitease-frontend build",
-  "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/[...slug].ts": {
-      "maxDuration": 30
-    }
-  },
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/api/(.*)", "dest": "/api/[...slug]" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+  "buildCommand": "pnpm --filter splitease-next build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "frontend-next/.next",
+  "framework": "nextjs",
+  "env": {
+    "BACKEND_URL": "@backend_url"
+  }
 }

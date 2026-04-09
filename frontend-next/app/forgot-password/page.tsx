@@ -28,8 +28,15 @@ function ForgotPasswordForm() {
       setPendingOtp(data.otp ?? null);
       router.push('/login/otp');
     } catch (err: unknown) {
-      const raw = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
-      setError(typeof raw === 'string' ? raw : 'Failed to send OTP. Try again.');
+      const axiosErr = err as { response?: { data?: { error?: unknown }; status?: number }; code?: string };
+      const raw = axiosErr?.response?.data?.error;
+      if (typeof raw === 'string') {
+        setError(raw);
+      } else if (axiosErr?.code === 'ERR_NETWORK' || axiosErr?.code === 'ECONNREFUSED') {
+        setError('Cannot reach server. Make sure the backend is running.');
+      } else {
+        setError(`Failed to send OTP (${axiosErr?.response?.status ?? axiosErr?.code ?? 'network error'})`);
+      }
     } finally {
       setLoading(false);
     }
