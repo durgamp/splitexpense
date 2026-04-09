@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
-// API calls are proxied via app/api/[...path]/route.ts → Express backend
-const config: NextConfig = {};
+const config: NextConfig = {
+  // Silence the "BACKEND_URL not set" warning at build time — it's fine;
+  // the proxy route only needs it at request time (runtime env var on Vercel).
+  serverExternalPackages: [],
+};
 
 export default config;

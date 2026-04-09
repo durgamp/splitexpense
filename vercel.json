@@ -1,9 +1,6 @@
 {
   "buildCommand": "pnpm --filter splitease-next build",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "installCommand": "pnpm install",
   "outputDirectory": "frontend-next/.next",
-  "framework": "nextjs",
-  "env": {
-    "BACKEND_URL": "@backend_url"
-  }
+  "framework": "nextjs"
 }
